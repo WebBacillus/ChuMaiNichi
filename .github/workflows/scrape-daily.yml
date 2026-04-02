@@ -1,0 +1,82 @@
+name: Run Scraper
+
+on:
+  # schedule:
+    # - cron: "0 15 * * *" # Runs daily at 22:00 Thailand time (UTC+7)
+  workflow_dispatch:
+    inputs:
+      backfill_date:
+        description: 'Date to backfill (YYYY-MM-DD). Leave empty for normal run.'
+        required: false
+        default: ''
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Install the latest version of uv and set the python version to 3.12
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Cache session cookies
+        uses: actions/cache@v5
+        with:
+          path: scraper/cookies
+          key: ${{ runner.os }}-sega-cookies
+          restore-keys: |
+            ${{ runner.os }}-sega-cookies-
+
+      - name: Install Dependencies
+        working-directory: scraper
+        run: |
+          uv sync
+          uv run playwright install
+
+      - name: Load Environment Variables
+        working-directory: scraper
+        run: |
+          echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
+          echo "SEGA_USERNAME=${{ secrets.SEGA_USERNAME }}" >> $GITHUB_ENV
+          echo "SEGA_PASSWORD=${{ secrets.SEGA_PASSWORD }}" >> $GITHUB_ENV
+
+      - name: Run Scraper
+        working-directory: scraper
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEGA_USERNAME: ${{ secrets.SEGA_USERNAME }}
+          SEGA_PASSWORD: ${{ secrets.SEGA_PASSWORD }}
+        run: |
+          if [ -n "${{ github.event.inputs.backfill_date }}" ]; then
+            uv run python main.py --backfill ${{ github.event.inputs.backfill_date }}
+          else
+            uv run python main.py
+          fi
+
+      - name: Upload cookies cache
+        uses: actions/cache@v5
+        with:
+          path: scraper/cookies
+          key: ${{ runner.os }}-sega-cookies
+
+      - name: Upload trace for debugging
+        if: failure() # Only upload on failure for debugging
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-trace-${{ github.run_number }}
+          path: scraper/trace.zip
+          retention-days: 7

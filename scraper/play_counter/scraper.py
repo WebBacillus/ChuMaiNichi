@@ -1,0 +1,346 @@
+import asyncio
+import json
+import re
+import time
+from pathlib import Path
+from datetime import datetime
+
+import requests
+from playwright.async_api import async_playwright
+
+from play_counter.config import SEGA_PASSWORD, SEGA_USERNAME
+from play_counter.utils.constants import DISCORD_WEBHOOK_URL, HOME_URLS, LOGIN_URLS
+
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # seconds
+
+# Cookie storage path (local only - users manage their own)
+COOKIES_DIR = Path("cookies")
+COOKIES_DIR.mkdir(exist_ok=True)
+
+# Trace/screenshot storage path
+TRACES_DIR = Path("traces")
+TRACES_DIR.mkdir(exist_ok=True)
+
+
+def get_cookies_path(game: str) -> Path:
+    """Get path to cookies file for a game."""
+    return COOKIES_DIR / f"{game}_state.json"
+
+
+def send_discord_notification(game: str, failure_reason: str, trace_path: str = None):
+    """Send notification to Discord when scraping fails."""
+    if not DISCORD_WEBHOOK_URL:
+        print(f"[SKIP] Skipping failure notification for {game} — DISCORD_WEBHOOK_URL not configured")
+        return
+
+    trace_info = f"\n[TRACE] Trace saved: `{trace_path}`" if trace_path else ""
+
+    payload = {
+        "content": f"[FAIL] **Scraping Failed** [FAIL]\n\n**Game:** {game}\n**Reason:** `{failure_reason}`\n**All {MAX_RETRIES} retries exhausted.**{trace_info}"
+    }
+
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
+        if response.status_code == 204:
+            print("[OK] Discord notification sent successfully")
+        else:
+            print(f"[WARN] Failed to send Discord notification: {response.status_code}")
+    except Exception as e:
+        print(f"[WARN] Error sending Discord notification: {e}")
+
+
+async def login_with_sega(page, game: str) -> bool:
+    """Perform SEGA ID login. Returns True on success."""
+    await page.goto(LOGIN_URLS[game], wait_until="domcontentloaded")
+    await page.locator("span.c-button--openid--segaId").click()
+    await page.locator("#sid").fill(SEGA_USERNAME)
+    await page.locator("#password").fill(SEGA_PASSWORD)
+
+    if game == "maimai":
+        await page.locator("label.c-form__label--bg.agree input#agree").click()
+        await page.wait_for_timeout(1000)
+
+        for i in range(3):
+            is_checked = await page.locator(
+                "label.c-form__label--bg.agree input#agree"
+            ).is_checked()
+            if is_checked:
+                break
+            print(f"[RETRY] Checkbox unchecked, clicking again... (attempt {i + 1})")
+            await page.locator("label.c-form__label--bg.agree input#agree").click()
+            await page.wait_for_timeout(500)
+
+    elif game == "chunithm":
+        await page.get_by_text("Agree to the terms of use for Aime service").click()
+        await page.wait_for_timeout(1000)
+
+        for i in range(3):
+            is_checked = await page.locator(
+                "label.c-form__label--bg:not(.agree) input#agree"
+            ).is_checked()
+            if is_checked:
+                break
+            print(f"[RETRY] Checkbox unchecked, clicking again... (attempt {i + 1})")
+            await page.get_by_text(
+                "Agree to the terms of use for Aime service"
+            ).click()
+            await page.wait_for_timeout(500)
+
+    await page.wait_for_selector("button#btnSubmit:not([disabled])", timeout=10000)
+    await page.locator("button#btnSubmit").click()
+    print("[OK] Login button clicked successfully")
+
+
+async def is_logged_in(page, game: str) -> bool:
+    """Check if page is already logged in (cookies are valid)."""
+    try:
+        await page.goto(LOGIN_URLS[game], wait_until="domcontentloaded")
+        # If we're on the home page, we're logged in
+        if page.url.startswith(HOME_URLS[game]):
+            print("[RETRY] Using cached session (already logged in)")
+            return True
+        return False
+    except Exception:
+        return False
+
+
+async def save_cookies(context, game: str) -> None:
+    """Save cookies to file for future use."""
+    cookies = await context.cookies()
+    cookies_path = get_cookies_path(game)
+    with open(cookies_path, "w") as f:
+        json.dump(cookies, f)
+    print(f"[SAVE] Saved cookies to {cookies_path}")
+
+
+async def load_cookies(context, game: str) -> bool:
+    """Load cookies from file. Returns True if cookies were loaded."""
+    cookies_path = get_cookies_path(game)
+    if not cookies_path.exists():
+        return False
+    try:
+        with open(cookies_path) as f:
+            cookies = json.load(f)
+        await context.add_cookies(cookies)
+        print(f"[LOAD] Loaded cookies from {cookies_path}")
+        return True
+    except Exception as e:
+        print(f"[WARN] Failed to load cookies: {e}")
+        return False
+
+
+async def capture_failure_details(page) -> str:
+    """Capture the URL and page text when a failure occurs."""
+    try:
+        url = page.url if page else "N/A"
+        page_text = ""
+        try:
+            page_text = await page.inner_text("body")
+            page_text = page_text.strip()[:500]  # Limit to 500 chars
+        except Exception:
+            page_text = "(could not capture page text)"
+
+        return f"url: {url} | body: {page_text}"
+    except Exception:
+        return "Failed to capture failure details"
+
+
+async def save_failure_trace(context, game: str) -> str:
+    """Save a Playwright trace for debugging failed attempts."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    trace_path = TRACES_DIR / f"{game}_failure_{timestamp}.zip"
+    try:
+        await context.tracing.stop(path=str(trace_path))
+        return str(trace_path)
+    except Exception as e:
+        print(f"[WARN] Failed to save trace: {e}")
+        return None
+
+
+async def fetch_player_data(game: str) -> dict:
+    """
+    Logs into the game website and retrieves player data (rating + cumulative play count).
+    Uses cookie caching for faster subsequent runs.
+
+    Returns:
+        dict: {
+            "rating": float/int,
+            "cumulative": int,
+            "failed": bool,
+            "failure_reason": str or None
+        }
+
+    For chunithm:
+        - Rating from home page: extracts from .player_rating_num_block images
+        - Play count from playerData page: extracts from .user_data_play_count
+
+    For maimai:
+        - Rating from home page: extracts from .rating_block
+        - Play count from playerData page: extracts via regex "maimaiDX total play count：XXX"
+    """
+    start_time = time.perf_counter()
+    using_cached_session = False
+
+    if not SEGA_USERNAME or not SEGA_PASSWORD:
+        default_rating = 0 if game == "maimai" else 0.0
+        print("[WARN] SEGA credentials are not configured. Returning default values.")
+        return {"rating": default_rating, "cumulative": 0, "failed": True, "failure_reason": "credentials_not_configured"}
+
+    cookies_loaded = False
+    last_failure_reason = None
+    last_trace_path = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        browser = None
+        context = None
+        try:
+            async with async_playwright() as p:
+                browser = await p.firefox.launch(headless=True)
+                context = await browser.new_context()
+                page = await context.new_page()
+
+                # Start tracing for failure debugging
+                await context.tracing.start(screenshots=True, snapshots=True)
+
+                login_start = time.perf_counter()
+                cookies_path = get_cookies_path(game)
+                if cookies_path.exists():
+                    cookies_loaded = await load_cookies(context, game)
+                    if cookies_loaded:
+                        if await is_logged_in(page, game):
+                            using_cached_session = True
+                            print(f"[OK] Using cached session for {game}")
+                        else:
+                            print("[WARN] Cookies expired, performing fresh login...")
+                            using_cached_session = False
+                            cookies_path.unlink(missing_ok=True)
+                            await login_with_sega(page, game)
+                            await save_cookies(context, game)
+                else:
+                    using_cached_session = False
+                    print("[RETRY] No cached cookies found, logging in...")
+                    await login_with_sega(page, game)
+                    await save_cookies(context, game)
+
+                login_time = time.perf_counter() - login_start
+
+                print(f"[RETRY] Waiting for {game} home page...")
+                try:
+                    await page.wait_for_url(HOME_URLS[game], timeout=10000)
+                except Exception:
+                    failure_reason = await capture_failure_details(page)
+                    print(f"[ERROR] Failed to load {game} home page: {failure_reason}")
+                    if cookies_loaded:
+                        print("[RETRY] Cached session failed, retrying with fresh login...")
+                        cookies_path = get_cookies_path(game)
+                        cookies_path.unlink(missing_ok=True)
+                        using_cached_session = False
+                        await login_with_sega(page, game)
+                        await save_cookies(context, game)
+                        await page.wait_for_url(HOME_URLS[game], timeout=10000)
+                    else:
+                        last_failure_reason = f"wait_for_url_timeout | {failure_reason}"
+                        last_trace_path = await save_failure_trace(context, game)
+                        await browser.close()
+                        raise
+
+                # === Get rating ===
+                print(f"[RETRY] Extracting {game} rating from home page...")
+
+                if game == "chunithm":
+                    rating_block = page.locator(".player_rating_num_block")
+                    images = await rating_block.locator("img").all()
+
+                    rating_str = ""
+                    for img in images:
+                        src = await img.get_attribute("src")
+                        if not src:
+                            continue
+
+                        filename = src.split("/")[-1]
+
+                        if "comma" in filename:
+                            rating_str += "."
+                        elif "rating_" in filename:
+                            digit = filename.split("_")[-1].replace(".png", "")
+                            rating_str += str(int(digit))
+
+                    rating = float(rating_str) if rating_str else 0.0
+
+                elif game == "maimai":
+                    rating_text = await page.locator(".rating_block").inner_text()
+                    rating = int(rating_text) if rating_text.isdigit() else 0
+
+                print(f"[OK] {game} rating: {rating}")
+
+                # === Get play count ===
+                print(f"[RETRY] Navigating to {game} play data page...")
+
+                if game == "chunithm":
+                    await page.goto(
+                        f"{HOME_URLS[game]}playerData", wait_until="domcontentloaded"
+                    )
+                    play_count_text = await page.locator(
+                        "div.user_data_play_count div.user_data_text"
+                    ).inner_text()
+                    cumulative = (
+                        int(play_count_text) if play_count_text.isdigit() else 0
+                    )
+
+                elif game == "maimai":
+                    await page.goto(
+                        "https://maimaidx-eng.com/maimai-mobile/playerData/",
+                        wait_until="domcontentloaded",
+                    )
+                    play_count_text = await page.locator(
+                        "div.m_5.m_b_5.t_r.f_12"
+                    ).inner_text()
+                    match = re.search(
+                        r"maimaiDX total play count：(\d+)", play_count_text
+                    )
+                    cumulative = int(match.group(1)) if match else 0
+
+                await save_cookies(context, game)
+                await browser.close()
+
+                total_time = time.perf_counter() - start_time
+                session_type = "cached" if using_cached_session else "fresh login"
+                print(
+                    f"[OK] [{session_type}] {game} done in {total_time:.2f}s "
+                    f"(login: {login_time:.2f}s) - Rating: {rating}, Cumulative: {cumulative}"
+                )
+                return {"rating": rating, "cumulative": cumulative, "failed": False, "failure_reason": None}
+
+        except Exception as e:
+            failure_reason = await capture_failure_details(page) if page else str(e)
+            last_failure_reason = failure_reason
+            print(f"[WARN] Attempt {attempt} failed: {e}")
+            print(f"   Details: {failure_reason}")
+
+            if attempt < MAX_RETRIES:
+                print(f"[WAIT] Retrying in {RETRY_DELAY} seconds...")
+                await asyncio.sleep(RETRY_DELAY)
+            else:
+                total_time = time.perf_counter() - start_time
+                print(f"[ERROR] {game} failed after {total_time:.2f}s")
+                send_discord_notification(game, last_failure_reason, last_trace_path)
+                return {
+                    "rating": 0 if game == "maimai" else 0.0,
+                    "cumulative": 0,
+                    "failed": True,
+                    "failure_reason": last_failure_reason
+                }
+        finally:
+            if browser:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+
+
+# Backward compatibility wrapper (if needed elsewhere)
+async def fetch_cumulative(game: str) -> int:
+    """Legacy function - returns only cumulative count"""
+    data = await fetch_player_data(game)
+    return data["cumulative"]
