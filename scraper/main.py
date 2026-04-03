@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from play_counter.config import CONFIG
 from play_counter.daily_play_notifier import send_notification
@@ -68,7 +68,8 @@ async def main():
         print("Exiting: Database is unreachable.")
         sys.exit(1)
 
-    today = datetime.today()
+    BKK = timezone(timedelta(hours=7))
+    today = datetime.now(BKK)
     today_str = today.strftime("%Y-%m-%d")
 
     if today.day == 1:
