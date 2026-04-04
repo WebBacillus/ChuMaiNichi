@@ -18,8 +18,8 @@ interface DailyRow {
 type Game = "maimai" | "chunithm";
 
 const COLORS: Record<Game, string[]> = {
-  maimai: ["#161b22", "#4a2600", "#7a4100", "#c46200", "#ff8c00"],
-  chunithm: ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"],
+  maimai: ["#161b22", "#5a2040", "#8a3560", "#b84a80", "#ff69aa"],
+  chunithm: ["#161b22", "#1a3066", "#254a99", "#2d59a3", "#3d67e3"],
 };
 
 const PLAY_KEY: Record<Game, keyof DailyRow> = {
