@@ -60,5 +60,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), devApiProxy()],
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
   }
 })
