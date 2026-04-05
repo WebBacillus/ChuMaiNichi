@@ -149,6 +149,12 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const pwd = process.env.DASHBOARD_PASSWORD;
+  const auth = req.headers.authorization?.replace("Bearer ", "");
+  if (pwd && auth !== pwd) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const { messages: userMessages, model: requestModel } = req.body ?? {};
   if (!Array.isArray(userMessages)) {
     return res.status(400).json({ error: "messages array is required" });
