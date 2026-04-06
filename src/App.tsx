@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
-import Heatmap from "./components/Heatmap"
+import { useState, useEffect, lazy, Suspense } from "react"
 import PasswordGate from "./components/PasswordGate"
 import { getPassword, authHeaders } from "./lib/auth"
+
+const Heatmap = lazy(() => import("./components/Heatmap"))
 
 function App() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -27,13 +28,30 @@ function App() {
     }).catch(() => setAuthed(false))
   }, [])
 
-  if (authed === null) return null
+  if (authed === null) return (
+    <div className="app-loading" aria-label="Checking authentication">
+      <span className="app-loading-text">ChuMaiNichi</span>
+    </div>
+  )
   if (!authed) return <PasswordGate onAuthenticated={() => setAuthed(true)} />
 
   return (
     <div className="app-container">
       <h1 className="app-title">ChuMaiNichi</h1>
-      <Heatmap games={["maimai", "chunithm"]} />
+      <Suspense fallback={
+        <div className="heatmap-skeleton" aria-label="Loading">
+          <div className="heatmap-skeleton-block">
+            <div className="heatmap-skeleton-title" />
+            <div className="heatmap-skeleton-grid" />
+          </div>
+          <div className="heatmap-skeleton-block">
+            <div className="heatmap-skeleton-title" />
+            <div className="heatmap-skeleton-grid" />
+          </div>
+        </div>
+      }>
+        <Heatmap games={["maimai", "chunithm"]} />
+      </Suspense>
     </div>
   )
 }

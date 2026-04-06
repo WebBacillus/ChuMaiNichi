@@ -45,6 +45,21 @@ body {
   border: 0;
 }
 
+/* ── App: auth loading ─────────────────────────────── */
+
+.app-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.app-loading-text {
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
 /* ── App layout ────────────────────────────────────── */
 
 .app-container {
@@ -167,6 +182,7 @@ body {
 
 .heatmap-game-block {
   margin-bottom: 2rem;
+  contain: content;
 }
 
 .heatmap-game-title {

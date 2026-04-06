@@ -3,7 +3,7 @@ import CalHeatmap from "cal-heatmap";
 import Tooltip from "cal-heatmap/plugins/Tooltip";
 import CalendarLabel from "cal-heatmap/plugins/CalendarLabel";
 import "cal-heatmap/cal-heatmap.css";
-import * as d3 from "d3";
+import { select } from "d3-selection";
 import { queryDB } from "../lib/api";
 
 // ── types ──────────────────────────────────────────────
@@ -162,41 +162,51 @@ function trimOverflow(container: HTMLElement, startYear: number) {
   spilloverEnd.setDate(jan1End.getDate() + (6 - endDow));
   const maxTs = spilloverEnd.getTime() + 86400000;
 
-  const sel = d3.select(container);
+  const sel = select(container);
+  const now = new Date();
+  const todayTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
   sel.selectAll(".ch-domain").each(function () {
     const g = this as SVGGElement;
     const firstRect = g.querySelector("rect.ch-subdomain-bg");
     if (!firstRect) return;
-    const datum = d3.select(firstRect).datum() as { t?: number } | null;
+    const datum = select(firstRect).datum() as { t?: number } | null;
     if (!datum?.t) return;
     if (datum.t < minTs || datum.t >= maxTs) {
       g.remove();
       return;
     }
-    d3.select(g)
+    select(g)
       .selectAll("rect")
       .each(function () {
-        const d = d3.select(this).datum() as { t?: number } | null;
+        const d = select(this).datum() as { t?: number } | null;
         if (!d?.t) return;
         if (d.t < minTs || d.t >= maxTs) {
           (this as Element).remove();
+        } else if (d.t === todayTs) {
+          select(this as Element).classed("heatmap-today", true);
         }
       });
   });
 
-  // Mark today's cell
-  const now = new Date();
-  const todayY = now.getFullYear();
-  const todayM = now.getMonth();
-  const todayD = now.getDate();
-  sel.selectAll("rect.ch-subdomain-bg").each(function () {
-    const datum = d3.select(this).datum() as { t?: number } | null;
-    if (!datum?.t) return;
-    const cd = new Date(datum.t);
-    if (cd.getFullYear() === todayY && cd.getMonth() === todayM && cd.getDate() === todayD) {
-      d3.select(this as Element).classed("heatmap-today", true);
+  // Collapse gap left by removed overflow months:
+  // After trimming Dec (x=0), Jan stays at its original x (e.g. 76),
+  // leaving dead space. Shift all remaining domains left to close it.
+  const remaining = svg.querySelectorAll<SVGSVGElement>(".ch-domain");
+  if (remaining.length > 0) {
+    let minX = Infinity;
+    remaining.forEach((d) => {
+      const x = parseFloat(d.getAttribute("x") || "0");
+      if (x < minX) minX = x;
+    });
+    const labelGap = 6;
+    if (minX > labelGap) {
+      remaining.forEach((d) => {
+        const x = parseFloat(d.getAttribute("x") || "0");
+        d.setAttribute("x", String(x - minX + labelGap));
+      });
     }
-  });
+  }
 
   // Resize SVG to fit remaining content
   const bbox = svg.getBBox();
@@ -228,25 +238,25 @@ function Legend({ game }: { game: Game }) {
 function StatsBar({ stats, year }: { stats: HeatmapStats; year: number }) {
   return (
     <div className="heatmap-stats">
-      <span>
+      <span title="Total credited plays this year">
         <strong>{stats.total.toLocaleString()}</strong> plays in {year}
       </span>
       <span className="heatmap-stats-sep" aria-hidden="true">
         &middot;
       </span>
-      <span>
+      <span title="Plays since Sunday">
         <strong>{stats.thisWeek}</strong> this week
       </span>
       <span className="heatmap-stats-sep" aria-hidden="true">
         &middot;
       </span>
-      <span>
+      <span title="Consecutive days with at least one play, ending today">
         streak <strong>{stats.currentStreak}</strong> days
       </span>
       <span className="heatmap-stats-sep" aria-hidden="true">
         &middot;
       </span>
-      <span>
+      <span title="Longest consecutive play streak this year">
         longest <strong>{stats.longestStreak}</strong> days
       </span>
     </div>
@@ -360,8 +370,8 @@ function GameHeatmap({
               key: "left",
               text: () => ["", "Mon", "", "Wed", "", "Fri", ""],
               textAlign: "end",
-              width: 30,
-              padding: [25, 10, 0, 0],
+              width: 24,
+              padding: [25, 0, 0, 0],
             },
           ],
         ],
@@ -424,8 +434,9 @@ function GameHeatmap({
         <div
           className="heatmap-container"
           ref={containerRef}
-          role="img"
+          role="figure"
           aria-label={`${gameName} play activity heatmap for ${year}`}
+          aria-roledescription="heatmap"
         />
       </div>
       <span className="sr-only">
@@ -433,7 +444,9 @@ function GameHeatmap({
         Longest streak: {stats.longestStreak} days.
       </span>
       <div className="heatmap-footer">
-        <p className={`tap-info${tapInfo ? " active" : ""}`}>{tapInfo || "\u00A0"}</p>
+        <p className={`tap-info${tapInfo ? " active" : ""}`}>
+          {tapInfo || "Click a cell for details"}
+        </p>
         <Legend game={game} />
       </div>
     </div>
@@ -451,35 +464,31 @@ export default function Heatmap({ games }: { games: Game[] }) {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
-    queryDB<{ last_date: string }>(
-      "SELECT MAX(play_date)::text AS last_date FROM daily_play",
-    )
-      .then((rows) => {
-        if (rows[0]?.last_date) setLastUpdated(rows[0].last_date);
-      })
-      .catch(() => {});
-  }, []);
-
-  const isStale =
-    lastUpdated != null &&
-    Date.now() - new Date(lastUpdated + "T00:00:00").getTime() > 2 * 86400000;
-
-  useEffect(() => {
     const currentYear = new Date().getFullYear();
-    fetchYears()
-      .then((yrs) => {
+    Promise.all([
+      fetchYears(),
+      queryDB<{ last_date: string }>(
+        "SELECT MAX(play_date)::text AS last_date FROM daily_play",
+      ),
+    ])
+      .then(([yrs, lastRows]) => {
         const set = new Set<number>(yrs);
         set.add(currentYear);
         set.add(currentYear - 1);
         const list = Array.from(set).sort((a, b) => a - b);
         setYears(list);
         setSelectedYear(list[list.length - 1]);
+        if (lastRows[0]?.last_date) setLastUpdated(lastRows[0].last_date);
       })
       .catch(() => {
         setYears([currentYear, currentYear - 1]);
         setSelectedYear(currentYear);
       });
   }, []);
+
+  const isStale =
+    lastUpdated != null &&
+    Date.now() - new Date(lastUpdated + "T00:00:00").getTime() > 2 * 86400000;
 
   const loadData = useCallback(async (year: number, spillover: boolean) => {
     setLoading(true);
@@ -488,7 +497,14 @@ export default function Heatmap({ games }: { games: Game[] }) {
       setData(await fetchData(year, spillover));
     } catch (err) {
       setData([]);
-      setError(err instanceof Error ? err.message : "Failed to load data");
+      const raw = err instanceof Error ? err.message : "";
+      if (raw.includes("unauthorized")) {
+        setError("Session expired. Reload the page to sign in again.");
+      } else if (raw.includes("fetch") || raw.includes("network") || raw.includes("Failed to fetch")) {
+        setError("Couldn't connect. Check your internet and try again.");
+      } else {
+        setError("Something went wrong loading play data.");
+      }
     } finally {
       setLoading(false);
     }
@@ -559,7 +575,7 @@ export default function Heatmap({ games }: { games: Game[] }) {
               <div className="heatmap-empty">
                 <p>No plays recorded in {selectedYear}</p>
                 <p className="heatmap-empty-hint">
-                  Plays will appear after the daily scraper runs.
+                  Plays appear automatically after each arcade session is recorded.
                 </p>
               </div>
             )}
