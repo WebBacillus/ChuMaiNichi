@@ -125,8 +125,17 @@ body {
   transition: background 0.15s;
 }
 
+.password-gate-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(134, 59, 255, 0.3);
+  outline: none;
+}
+
 .password-gate-btn:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+
+.password-gate-btn:active:not(:disabled) {
+  background: #7232d9;
 }
 
 .password-gate-btn:disabled {
@@ -157,6 +166,7 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
   outline: none;
+  transition: border-color 0.15s;
 }
 
 .year-select:hover {
@@ -270,6 +280,7 @@ body {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   margin: 0;
+  transition: color 0.15s;
 }
 
 .tap-info.active {
@@ -389,6 +400,10 @@ rect.heatmap-today {
   border-color: var(--color-accent);
 }
 
+.heatmap-retry-btn:active {
+  background: var(--color-surface);
+}
+
 .heatmap-retry-btn:focus-visible {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px rgba(134, 59, 255, 0.3);
@@ -423,7 +438,9 @@ rect.heatmap-today {
     animation: none;
   }
   .password-gate-btn,
-  .heatmap-retry-btn {
+  .heatmap-retry-btn,
+  .year-select,
+  .tap-info {
     transition: none;
   }
 }
