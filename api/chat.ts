@@ -8,6 +8,8 @@ import type {
 } from "openai/resources/chat/completions";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { suggestSongs } from "../src/lib/suggest-songs";
+import type { PlayerData, SongData } from "../src/lib/rating";
 
 // --- Provider auto-detection ---
 
@@ -85,7 +87,14 @@ RULES:
 - Currency per play: ${config.currency_per_play} THB
 
 Use query_database to answer questions about play data. Write efficient SELECT queries only.
-Be concise and helpful.`;
+Use suggest_songs when the player asks for song recommendations to improve their rating.
+Be concise and helpful.
+
+IMPORTANT FORMATTING RULES FOR suggest_songs:
+- Show ALL songs from tool response, do not skip any
+- Show score as percentage with 4 decimal places (e.g., 99.5000%, 100.5000%), NEVER show raw numbers like 1005000
+- NEVER omit current_rank or current_score - they are REQUIRED fields
+- In target mode: 'gain_needed' shows how much rating is needed from that song. 'max_gain' shows the maximum possible gain at SSS+. ALWAYS show BOTH.`;
 }
 
 // --- Tool definitions ---
@@ -110,6 +119,50 @@ const QUERY_TOOL: ChatCompletionTool = {
     },
   },
 };
+
+const SUGGEST_SONGS_TOOL: ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "suggest_songs",
+    description:
+      "Suggest maimai songs to improve player rating. Use when player asks for song recommendations, how to raise rating, or what to play next.",
+    parameters: {
+      type: "object",
+      properties: {
+        target_rating: {
+          type: "integer",
+          description: "Target rating to reach (optional, triggers target mode)",
+        },
+        mode: {
+          type: "string",
+          enum: ["auto", "target", "best_effort"],
+          description:
+            "auto = target mode if target_rating given, else best_effort",
+        },
+        max_suggestions: {
+          type: "integer",
+          description: "Maximum suggestions per category (default 5)",
+        },
+      },
+    },
+  },
+};
+
+// --- Songs data cache ---
+
+let _songsCache: SongData[] | null = null;
+
+function loadSongs(): SongData[] {
+  if (_songsCache) return _songsCache;
+  try {
+    _songsCache = JSON.parse(
+      readFileSync(join(process.cwd(), "public", "songs.json"), "utf-8"),
+    );
+    return _songsCache!;
+  } catch {
+    return [];
+  }
+}
 
 // --- Tool execution ---
 
@@ -137,6 +190,30 @@ async function executeTool(
       return { error: "Query execution failed" };
     }
   }
+  if (name === "suggest_songs") {
+    try {
+      const db = neon(process.env.DATABASE_URL!);
+      const rows = await db.query(
+        `SELECT data FROM user_scores WHERE game = 'maimai' ORDER BY scraped_at DESC LIMIT 1`,
+      );
+      if (rows.length === 0) {
+        return { error: "No maimai player data found. Run the user data scraper first." };
+      }
+      const playerData = rows[0].data as PlayerData;
+      const allSongs = loadSongs();
+      if (allSongs.length === 0) {
+        return { error: "No songs data available. songs.json is missing or empty." };
+      }
+      return suggestSongs(playerData, allSongs, {
+        targetRating: (args.target_rating as number) || null,
+        mode: (args.mode as "auto" | "target" | "best_effort") || "auto",
+        maxSuggestions: (args.max_suggestions as number) || 5,
+      });
+    } catch {
+      return { error: "Song suggestion failed" };
+    }
+  }
+
   return { error: `Unknown tool: ${name}` };
 }
 
@@ -187,6 +264,9 @@ export default async function handler(
   const model = requestModel || defaultModel();
   const config = loadConfig();
   const tools: ChatCompletionTool[] = [QUERY_TOOL];
+  if (config.games.includes("maimai")) {
+    tools.push(SUGGEST_SONGS_TOOL);
+  }
 
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: buildSystemPrompt(config) },
