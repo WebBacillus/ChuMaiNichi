@@ -18,7 +18,7 @@ jobs:
       - name: Check if maimai is in config
         id: check-config
         run: |
-          if grep -q '"maimai"' config.json; then
+          if jq -e '.games | index("maimai")' config.json > /dev/null; then
             echo "maimai_enabled=true" >> $GITHUB_OUTPUT
           else
             echo "maimai_enabled=false" >> $GITHUB_OUTPUT
