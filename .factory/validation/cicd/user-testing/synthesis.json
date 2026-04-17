@@ -1,6 +1,6 @@
 {
   "milestone": "cicd",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "assertionsSummary": {
     "total": 3,
@@ -13,9 +13,9 @@
   "blockedAssertions": [
     {
       "id": "VAL-API-001",
-      "blockedBy": "Feature api-refresh-route is pending. api/refresh.ts is a stub that does not implement the required functionality: reads GITHUB_PAT and GITHUB_REPO, POSTs to GitHub API to dispatch the workflow, returns { run_url }."
+      "blockedBy": "Feature api-refresh-route is still pending. api/refresh.ts remains a stub. Expected: reads GITHUB_PAT and GITHUB_REPO, POSTs to GitHub API to dispatch the workflow, returns { run_url }."
     }
   ],
   "appliedUpdates": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/cicd/user-testing/synthesis.json"
 }
