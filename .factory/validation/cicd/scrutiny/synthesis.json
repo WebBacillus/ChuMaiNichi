@@ -1,11 +1,11 @@
 {
   "milestone": "cicd",
-  "round": 1,
-  "status": "pass",
+  "round": 2,
+  "status": "fail",
   "validatorsRun": {
     "test": { "passed": true, "command": "cd scraper && uv run pytest", "exitCode": 0, "note": "18 tests passed" },
     "typecheck": { "passed": true, "command": "npm run build", "exitCode": 0, "note": "TypeScript compilation and Vite build succeeded" },
-    "lint": { "passed": false, "command": "npm run lint", "exitCode": 1, "note": "2 pre-existing React best-practice errors in src/components/Heatmap.tsx (lines 493, 524). These errors are NOT in the cicd feature code (github-actions-workflows only touches .github/workflows/ and scraper/). Build passes despite lint errors." }
+    "lint": { "passed": true, "command": "npm run lint", "exitCode": 0, "note": "Lint passed in round 2 (pre-existing Heatmap.tsx errors were fixed in feat/pipeline)" }
   },
   "reviewsSummary": {
     "total": 1,
@@ -13,25 +13,16 @@
     "failed": 0,
     "failedFeatures": []
   },
-  "blockingIssues": [],
+  "blockingIssues": [
+    {
+      "featureId": "api-refresh",
+      "severity": "blocking",
+      "description": "api/refresh.ts is a stub that only checks auth and returns {status:\"ok\"}. It does NOT dispatch a GitHub Actions workflow. According to CLAUDE.md and VAL-API-001, it should use GITHUB_PAT and GITHUB_REPO to trigger workflow_dispatch on scrape-user-data.yml and return {run_url:\"...\"}. No GitHub API client (octokit or otherwise) is imported or used.",
+      "fixRequired": "Implement the GitHub API call to dispatch scrape-user-data.yml using GITHUB_PAT and GITHUB_REPO env vars. Return {run_url:\"...\"} with the workflow run URL."
+    }
+  ],
   "appliedUpdates": [],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "AGENTS.md",
-      "suggestion": "Consider adding guidance on pre-existing lint errors: if lint fails due to issues in unrelated, pre-existing code (not in the feature being validated), workers should document this and proceed with feature review rather than treating it as a blocking failure.",
-      "evidence": "Lint failed with 2 errors in Heatmap.tsx (Date.now() in render, setState in effect). These are React best-practice issues pre-existing in a component unrelated to the github-actions-workflows feature.",
-      "isSystemic": true
-    }
-  ],
-  "rejectedObservations": [
-    {
-      "observation": "backend-worker skill file missing from .factory/skills/",
-      "reason": "Skill file existence is not something the scrutiny validator should enforce or fix — skill files are part of the agent configuration, not the codebase"
-    },
-    {
-      "observation": "uv not documented in services.yaml",
-      "reason": "uv is already used in the install and test commands (uv sync, uv run pytest) — no additional documentation needed"
-    }
-  ],
-  "previousRound": null
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": ".factory/validation/cicd/scrutiny/synthesis.json"
 }
