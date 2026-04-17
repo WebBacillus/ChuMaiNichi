@@ -16,3 +16,13 @@ export async function queryDB<T = Record<string, unknown>>(
   const json = await res.json();
   return json.rows;
 }
+
+export async function triggerRefresh(): Promise<{ run_url: string }> {
+  const res = await fetch("/api/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+  });
+  if (res.status === 401) throw new Error("unauthorized");
+  if (!res.ok) throw new Error(`refresh failed: ${res.status}`);
+  return res.json();
+}

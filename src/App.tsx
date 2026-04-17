@@ -1,11 +1,13 @@
 import { useState, useEffect, lazy, Suspense } from "react"
 import PasswordGate from "./components/PasswordGate"
 import { getPassword, authHeaders } from "./lib/auth"
+import { triggerRefresh } from "./lib/api"
 
 const Heatmap = lazy(() => import("./components/Heatmap"))
 
 function App() {
   const [authed, setAuthed] = useState<boolean | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     const pwd = getPassword()
@@ -28,6 +30,18 @@ function App() {
     }).catch(() => setAuthed(false))
   }, [])
 
+  async function handleRefresh() {
+    setRefreshing(true)
+    try {
+      const { run_url } = await triggerRefresh()
+      window.open(run_url, "_blank")
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   if (authed === null) return (
     <div className="app-loading" aria-label="Checking authentication">
       <span className="app-loading-text">ChuMaiNichi</span>
@@ -37,7 +51,17 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1 className="app-title">ChuMaiNichi</h1>
+      <h1 className="app-title">
+        ChuMaiNichi
+        <button
+          className="refresh-btn"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          title="Trigger user data refresh"
+        >
+          {refreshing ? "⟳" : "↻"}
+        </button>
+      </h1>
       <Suspense fallback={
         <div className="heatmap-skeleton" aria-label="Loading">
           <div className="heatmap-skeleton-block">

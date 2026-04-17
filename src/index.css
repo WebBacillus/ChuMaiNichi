@@ -71,6 +71,30 @@ body {
 .app-title {
   font-size: 1.5rem;
   margin: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.refresh-btn {
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  color: #fff;
+}
+.refresh-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+.refresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.refresh-btn:disabled::after {
+  content: "";
 }
 
 /* ── Password gate ─────────────────────────────────── */
