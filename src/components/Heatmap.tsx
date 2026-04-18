@@ -488,9 +488,21 @@ export default function Heatmap({ games }: { games: Game[] }) {
       });
   }, []);
 
-  const isStale =
-    lastUpdated != null &&
-    Date.now() - new Date(lastUpdated + "T00:00:00").getTime() > 2 * 86400000;
+  // Staleness is computed in an effect to avoid impure Date.now() during render
+  const [isStale, setIsStale] = useState(false);
+
+  useEffect(() => {
+    if (lastUpdated == null) {
+      // Defer to avoid synchronous setState in effect
+      const id = setTimeout(() => setIsStale(false), 0);
+      return () => clearTimeout(id);
+    }
+    const id = setTimeout(() => {
+      const ageMs = Date.now() - new Date(lastUpdated + "T00:00:00").getTime();
+      setIsStale(ageMs > 2 * 86400000);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [lastUpdated]);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -520,8 +532,12 @@ export default function Heatmap({ games }: { games: Game[] }) {
 
   useEffect(() => {
     if (!years.length) return;
-    loadData(selectedYear, true);
-    return () => { abortRef.current?.abort(); };
+    // Schedule data load on next tick to avoid synchronous setState cascade
+    const id = setTimeout(() => loadData(selectedYear, true), 0);
+    return () => {
+      clearTimeout(id);
+      abortRef.current?.abort();
+    };
   }, [selectedYear, years, loadData]);
 
   return (
