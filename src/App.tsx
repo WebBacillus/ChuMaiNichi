@@ -14,6 +14,8 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { TooltipProvider } from "./global/components/ui/tooltip";
 import ChatPanel from "./features/chat/components/ChatPanel";
 import useChatRuntime from "./features/chat/hooks/useChatRuntime";
+import SettingsModal from "./features/settings/components/SettingsModal";
+import useDarkMode from "./features/settings/hooks/useDarkMode";
 
 const Heatmap = lazy(() => import("./features/heatmap/components/Heatmap"));
 
@@ -21,6 +23,7 @@ function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const { password, getAuthHeaders } = useAuthStore();
 
+  useDarkMode();
   useEffect(() => {
     authenticate()
       .then(() => setAuthed(true))
@@ -38,6 +41,7 @@ function App() {
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="75%" className="p-8 mx-auto max-w-5xl">
             <h1>ChuMaiNichi</h1>
+            <SettingsModal />
             <Suspense fallback={<HeatmapSkeleton />}>
               <Heatmap games={APP_CONFIG.games} />
             </Suspense>
