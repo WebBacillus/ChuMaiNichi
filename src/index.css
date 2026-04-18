@@ -1090,6 +1090,21 @@ h1 {
   max-height: 140px;
   min-height: 22px;
   padding: 3px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.chat-composer__input::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-composer__input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-composer__input::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .chat-composer__input::placeholder {
