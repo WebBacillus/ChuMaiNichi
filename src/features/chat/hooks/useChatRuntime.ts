@@ -1,18 +1,16 @@
 import useAuthStore from "@/features/auth/stores/auth-store";
 import { useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react";
-import axios from "axios";
 
 export default function useChatRuntime() {
   const { getAuthHeaders } = useAuthStore();
   const MyModelAdapter: ChatModelAdapter = {
     async run({ messages, abortSignal }) {
-      // TODO replace with your own API
-      const response = await axios.post("/api/chat", {
+      const response = await fetch("/api/chat", {
+        method: "POST",
         headers: {
-          ...getAuthHeaders,
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
-        // forward the messages in the chat to the API
         body: JSON.stringify({
           messages: messages.map((m) => ({
             role: m.role,
@@ -25,19 +23,38 @@ export default function useChatRuntime() {
                     .join(""),
           })),
         }),
-        // if the user hits the "cancel" button or escape keyboard key, cancel the request
         signal: abortSignal,
       });
 
-      const data = await response.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: data.text,
-          },
-        ],
-      };
+      if (!response.ok || !response.body) {
+        throw new Error(`Chat request failed: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        for (const evt of events) {
+          const line = evt.trim();
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.type === "content" && payload.content) {
+              text += payload.content;
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        }
+      }
+
+      return { content: [{ type: "text", text }] };
     },
   };
 

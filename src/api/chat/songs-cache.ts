@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import type { SongData } from "../../global/lib/maimai-rating";
+import type { SongData } from "../../global/lib/maimai-rating.js";
 
 let _songsCache: SongData[] | null = null;
 

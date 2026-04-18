@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import type { VercelResponse } from "@vercel/node";
-import { ApplicationException } from "../global/lib/error-handling";
+import { ApplicationException } from "../global/lib/error-handling.js";
 
 export function formatErrorMessage<CodeT extends string>(
   err: ApplicationException<CodeT>,

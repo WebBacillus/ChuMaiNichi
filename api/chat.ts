@@ -4,15 +4,15 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
-import { checkAuth } from "../src/api/auth";
-import { loadConfig } from "../src/api/config";
-import { createClient, defaultModel } from "../src/api/chat/client";
-import { buildSystemPrompt } from "../src/api/chat/system-prompt";
+import { checkAuth } from "../src/api/auth.js";
+import { loadConfig } from "../src/api/config.js";
+import { createClient, defaultModel } from "../src/api/chat/client.js";
+import { buildSystemPrompt } from "../src/api/chat/system-prompt.js";
 import {
   QUERY_TOOL,
   SUGGEST_SONGS_TOOL,
   executeTool,
-} from "../src/api/chat/tools";
+} from "../src/api/chat/tools.js";
 
 // --- Handler ---
 

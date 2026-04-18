@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { Connect } from "vite";
 import type { IncomingMessage, ServerResponse } from "http";
-import { getStatusCode, handleRequest } from "../src/api/query";
-import { QueryErrorHandler } from "../src/api/query/errors";
-import { handleViteError, handleVercelError } from "../src/api/error-handling";
+import { getStatusCode, handleRequest } from "../src/api/query.js";
+import { QueryErrorHandler } from "../src/api/query/errors.js";
+import { handleViteError, handleVercelError } from "../src/api/error-handling.js";
 
 export async function viteHandler(
   req: Connect.IncomingMessage,

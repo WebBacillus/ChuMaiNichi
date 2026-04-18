@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
-import { checkAuth } from "./auth";
-import { QueryException } from "./query/errors";
+import { checkAuth } from "./auth.js";
+import { QueryException } from "./query/errors.js";
 
 const FORBIDDEN =
   /;|--|\/\*|\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|COPY|INTO)\b/i;
@@ -29,9 +29,17 @@ export async function runQuery(
       "Forbidden SQL pattern detected",
     );
 
-  const sql = neon(dbUrl);
-  const rows = await sql.query(query, params);
-  return { rows, rowCount: rows.length };
+  try {
+    const sql = neon(dbUrl);
+    const rows = await sql.query(query, params);
+    return { rows, rowCount: rows.length };
+  } catch (e) {
+    console.error("Query execution error:", e);
+    throw new QueryException(
+      "UNKNOWN_ERROR",
+      `Query execution failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
 }
 
 export function getStatusCode(e: QueryException) {

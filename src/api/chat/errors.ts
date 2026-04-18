@@ -2,7 +2,7 @@ import {
   ApplicationException,
   ErrorHandler,
   type GeneralErrorCode,
-} from "../../global/lib/error-handling";
+} from "../../global/lib/error-handling.js";
 
 type ChatErrorCode =
   | "METHOD_NOT_ALLOWED"

@@ -29,7 +29,7 @@ const generalErrorEntries: ErrorEntry<GeneralErrorCode>[] = [
     code: "INVALID_CREDENTIALS",
     condition: (e) => {
       if (axios.isAxiosError(e)) {
-        return e.response?.status === 403;
+        return e.response?.status === 401;
       }
 
       return false;
@@ -38,7 +38,6 @@ const generalErrorEntries: ErrorEntry<GeneralErrorCode>[] = [
   {
     code: "INTERNAL_ERROR",
     condition: (e) => {
-      console.log(e);
       if (axios.isAxiosError(e)) {
         return (
           e.response?.status != null &&

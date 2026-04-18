@@ -1,8 +1,8 @@
 import { neon } from "@neondatabase/serverless";
-import { suggestSongs } from "../../global/lib/maimai-suggest";
-import type { PlayerData } from "../../global/lib/maimai-rating";
+import { suggestSongs } from "../../global/lib/maimai-suggest.js";
+import type { PlayerData } from "../../global/lib/maimai-rating.js";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
-import { loadSongs } from "./songs-cache";
+import { loadSongs } from "./songs-cache.js";
 
 export const QUERY_TOOL: ChatCompletionTool = {
   type: "function",
