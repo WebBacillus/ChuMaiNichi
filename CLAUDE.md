@@ -159,7 +159,7 @@ Single config file at repo root. Friends edit this once after forking.
 **Who reads it:**
 - GitHub Actions workflows: decides which Docker scrapers to run and which Playwright portals to scrape
 - Vercel API routes: `api/chat.ts` reads it to configure available tools (`maimai_suggest_songs` only when `"maimai"` is in `games`)
-- React frontend: fetches `/config.json` to decide which UI components to render (heatmap columns, rating chart lines)
+- React frontend: imports `config.json` at build time via `src/lib/config.ts` to decide which UI components to render (heatmap columns, rating chart lines). Baked into the bundle, so editing requires a redeploy.
 
 **Do NOT put secrets in config.json** — it is committed to git and served publicly.
 

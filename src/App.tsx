@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react"
 import PasswordGate from "./components/PasswordGate"
 import { getPassword, authHeaders } from "./lib/auth"
+import { APP_CONFIG } from "./lib/config"
 
 const Heatmap = lazy(() => import("./components/Heatmap"))
 
@@ -40,17 +41,15 @@ function App() {
       <h1 className="app-title">ChuMaiNichi</h1>
       <Suspense fallback={
         <div className="heatmap-skeleton" aria-label="Loading">
-          <div className="heatmap-skeleton-block">
-            <div className="heatmap-skeleton-title" />
-            <div className="heatmap-skeleton-grid" />
-          </div>
-          <div className="heatmap-skeleton-block">
-            <div className="heatmap-skeleton-title" />
-            <div className="heatmap-skeleton-grid" />
-          </div>
+          {APP_CONFIG.games.map((g) => (
+            <div key={g} className="heatmap-skeleton-block">
+              <div className="heatmap-skeleton-title" />
+              <div className="heatmap-skeleton-grid" />
+            </div>
+          ))}
         </div>
       }>
-        <Heatmap games={["maimai", "chunithm"]} />
+        <Heatmap games={APP_CONFIG.games} />
       </Suspense>
     </div>
   )
