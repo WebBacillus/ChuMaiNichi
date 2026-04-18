@@ -36,13 +36,15 @@ function App() {
   return (
     <TooltipProvider>
       <AssistantRuntimeProvider runtime={runtime}>
-        <ResizablePanelGroup orientation="horizontal">
-          <ResizablePanel defaultSize="75%" className="p-8 mx-auto max-w-5xl">
-            <h1>ChuMaiNichi</h1>
-            <SettingsModal />
-            <Suspense fallback={<HeatmapSkeleton />}>
-              <Heatmap games={APP_CONFIG.games} />
-            </Suspense>
+        <ResizablePanelGroup orientation="horizontal" className="h-dvh">
+          <ResizablePanel defaultSize="75%" className="overflow-auto">
+            <div className="p-8 mx-auto max-w-5xl">
+              <h1>ChuMaiNichi</h1>
+              <SettingsModal />
+              <Suspense fallback={<HeatmapSkeleton />}>
+                <Heatmap games={APP_CONFIG.games} />
+              </Suspense>
+            </div>
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel>
