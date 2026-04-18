@@ -55,7 +55,7 @@ ChuMaiNichi/
 ├── .github/workflows/
 │   ├── scrape-daily.yml          # Cron: daily at 22:00 Asia/Bangkok
 │   ├── scrape-user-data.yml      # Manual: workflow_dispatch for user.json
-│   └── refresh-songs.yml         # Weekly: cache songs.json from wonderhoy API
+│   └── refresh-songs.yml         # Weekly: cache maimai-songs.json from wonderhoy API
 ├── scraper/                      # Python — migrated from Chunimai-tracker
 │   ├── play_counter/
 │   │   ├── config.py             # Env var loading, notification config
@@ -88,7 +88,7 @@ ChuMaiNichi/
 │   ├── App.tsx                   # Single page: main view + sidebar + modal
 │   └── main.tsx
 ├── public/
-│   └── songs.json                # Cached from maimai.wonderhoy.me/api/musicData (weekly refresh)
+│   └── maimai-songs.json         # Cached from maimai.wonderhoy.me/api/musicData (weekly refresh)
 ├── config.json                   # USER EDITS THIS: games, currency (see "Config" section)
 ├── package.json
 ├── tsconfig.json
@@ -110,7 +110,7 @@ The one file friends edit after forking. Read by GitHub Actions (which scrapers 
 
 | Field | Values | Effect |
 |---|---|---|
-| `games` | `["maimai"]`, `["chunithm"]`, or `["maimai", "chunithm"]` | Controls which scrapers run in Actions, which heatmap columns / rating lines render, and whether `suggest_songs` is available (maimai only) |
+| `games` | `["maimai"]`, `["chunithm"]`, or `["maimai", "chunithm"]` | Controls which scrapers run in Actions, which heatmap columns / rating lines render, and whether `maimai_suggest_songs` is available (maimai only) |
 | `currency_per_play` | Number (THB) | Used in spending calculations on the dashboard |
 
 **Do NOT put secrets in this file.** It is committed to git and publicly visible.
@@ -153,13 +153,13 @@ Single config file at repo root. Friends edit this once after forking.
 
 | Field | Values | Effect |
 |---|---|---|
-| `games` | `["maimai"]`, `["chunithm"]`, or `["maimai", "chunithm"]` | Controls which scrapers run in GitHub Actions, which heatmap columns render, which rating lines show, whether suggest_songs is available (maimai only) |
+| `games` | `["maimai"]`, `["chunithm"]`, or `["maimai", "chunithm"]` | Controls which scrapers run in GitHub Actions, which heatmap columns render, which rating lines show, whether `maimai_suggest_songs` is available (maimai only) |
 | `currency_per_play` | Integer (THB) | Used to calculate money spent in reports and Discord notifications |
 
 **Who reads it:**
 - GitHub Actions workflows: decides which Docker scrapers to run and which Playwright portals to scrape
-- Vercel API routes: `api/chat.ts` reads it to configure available tools (suggest_songs only when `"maimai"` is in `games`)
-- React frontend: fetches `/config.json` to decide which UI components to render (heatmap columns, rating chart lines)
+- Vercel API routes: `api/chat.ts` reads it to configure available tools (`maimai_suggest_songs` only when `"maimai"` is in `games`)
+- React frontend: imports `config.json` at build time via `src/lib/config.ts` to decide which UI components to render (heatmap columns, rating chart lines). Baked into the bundle, so editing requires a redeploy.
 
 **Do NOT put secrets in config.json** — it is committed to git and served publicly.
 
@@ -216,7 +216,7 @@ Rank multipliers (RANK_FACTORS):
 Achievement is score / 10000 (e.g., 1005000 = 100.5%).
 
 ### Chart constants source
-- Cached in `public/songs.json` from `maimai.wonderhoy.me/api/musicData`
+- Cached in `public/maimai-songs.json` from `maimai.wonderhoy.me/api/musicData`
 - Refreshed weekly by GitHub Actions (constants change on version updates)
 - Do NOT call the API at runtime — read the cached file instead (avoids 60s timeout risk)
 - `maimai.wonderhoy.me/api/calcRating` is usable as a data source BUT has a known discrepancy: if a player hasn't unlocked a song (e.g., "7 wonders"), it won't appear in their play_data scrape but CAN appear in the API's top-50 calculation, causing the API to overestimate rating for that player
@@ -235,7 +235,7 @@ Achievement is score / 10000 (e.g., 1005000 = 100.5%).
 - Streams response via ReadableStream
 - Tool definitions:
   - `query_database`: generates and executes read-only SQL against Neon
-  - `suggest_songs`: maimai only — finds songs where score improvement most efficiently increases DX rating (see "Song suggestion algorithm" section below)
+  - `maimai_suggest_songs`: maimai only — finds songs where score improvement most efficiently increases DX rating (see "Song suggestion algorithm" section below). Name is game-prefixed so a future `chunithm_suggest_songs` can coexist without ambiguity.
 - System prompt includes full schema DDL, rating formula, and tool examples
 - **60-second timeout on Vercel Hobby** — use streaming to keep connection alive
 
@@ -268,7 +268,7 @@ Achievement is score / 10000 (e.g., 1005000 = 100.5%).
 ### refresh-songs.yml
 - Cron: weekly (or `workflow_dispatch`)
 - Only runs if `"maimai"` is in `config.json` games array
-- Fetches `maimai.wonderhoy.me/api/musicData` → writes to `public/songs.json` → commits
+- Fetches `maimai.wonderhoy.me/api/musicData` → writes to `public/maimai-songs.json` → commits
 - Chart constants change on version updates (~weekly), so this keeps the cache fresh
 - No secrets needed (public API)
 
@@ -276,11 +276,11 @@ Achievement is score / 10000 (e.g., 1005000 = 100.5%).
 
 > CHUNITHM song suggestion is a future feature, not in scope for the deadline.
 
-The `suggest_songs` tool runs server-side in `api/chat.ts`. It is maimai-specific.
+The `maimai_suggest_songs` tool runs server-side in `api/chat.ts`. It is maimai-specific (a future `chunithm_suggest_songs` will be a separate file — see `src/lib/maimai-suggest.ts`).
 
 ### Data inputs
 - **player_data**: From `user_scores` table (JSONB). Contains `profile`, `best` (top 35 old), `current` (top 15 new), and `allRecords` (full play history from play_data page)
-- **songs.json**: Cached song catalog with chart constants per difficulty
+- **maimai-songs.json**: Cached song catalog with chart constants per difficulty
 
 ### Two modes
 

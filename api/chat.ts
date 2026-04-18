@@ -8,8 +8,8 @@ import type {
 } from "openai/resources/chat/completions";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { suggestSongs } from "../src/lib/suggest-songs";
-import type { PlayerData, SongData } from "../src/lib/rating";
+import { suggestSongs } from "../src/lib/maimai-suggest";
+import type { PlayerData, SongData } from "../src/lib/maimai-rating";
 
 // --- Provider auto-detection ---
 
@@ -87,10 +87,10 @@ RULES:
 - Currency per play: ${config.currency_per_play} THB
 
 Use query_database to answer questions about play data. Write efficient SELECT queries only.
-Use suggest_songs when the player asks for song recommendations to improve their rating.
+Use maimai_suggest_songs when the player asks for maimai song recommendations to improve their rating.
 Be concise and helpful.
 
-IMPORTANT FORMATTING RULES FOR suggest_songs:
+IMPORTANT FORMATTING RULES FOR maimai_suggest_songs:
 - Show ALL songs from tool response, do not skip any
 - Show score as percentage with 4 decimal places (e.g., 99.5000%, 100.5000%), NEVER show raw numbers like 1005000
 - NEVER omit current_rank or current_score - they are REQUIRED fields
@@ -123,9 +123,9 @@ const QUERY_TOOL: ChatCompletionTool = {
 const SUGGEST_SONGS_TOOL: ChatCompletionTool = {
   type: "function",
   function: {
-    name: "suggest_songs",
+    name: "maimai_suggest_songs",
     description:
-      "Suggest maimai songs to improve player rating. Use when player asks for song recommendations, how to raise rating, or what to play next.",
+      "Suggest maimai songs to improve the player's maimai DX rating. Use when the player asks for maimai song recommendations, how to raise their maimai rating, or what maimai chart to play next. This tool is maimai-only and has no chunithm equivalent.",
     parameters: {
       type: "object",
       properties: {
@@ -156,7 +156,7 @@ function loadSongs(): SongData[] {
   if (_songsCache) return _songsCache;
   try {
     _songsCache = JSON.parse(
-      readFileSync(join(process.cwd(), "public", "songs.json"), "utf-8"),
+      readFileSync(join(process.cwd(), "public", "maimai-songs.json"), "utf-8"),
     );
     return _songsCache!;
   } catch {
@@ -190,7 +190,7 @@ async function executeTool(
       return { error: "Query execution failed" };
     }
   }
-  if (name === "suggest_songs") {
+  if (name === "maimai_suggest_songs") {
     try {
       const db = neon(process.env.DATABASE_URL!);
       const rows = await db.query(
@@ -202,7 +202,7 @@ async function executeTool(
       const playerData = rows[0].data as PlayerData;
       const allSongs = loadSongs();
       if (allSongs.length === 0) {
-        return { error: "No songs data available. songs.json is missing or empty." };
+        return { error: "No songs data available. maimai-songs.json is missing or empty." };
       }
       return suggestSongs(playerData, allSongs, {
         targetRating: (args.target_rating as number) || null,
