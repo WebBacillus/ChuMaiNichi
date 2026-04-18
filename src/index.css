@@ -1,14 +1,40 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/sora";
 @import "@fontsource-variable/jetbrains-mono";
+
+@font-face {
+  font-family: 'HarmonyOS Sans';
+  src: url('/fonts/harmonyos/Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+a,U+20-7e,U+a0-17f,U+18f,U+192,U+1a0-1a1,U+1af-1b0,U+1cd-1dc,U+1e5,U+1e7,U+1e9,U+1ef-1f0,U+1f9-1ff,U+218-21b,U+21f,U+237,U+2c6-2c7,U+2c9,U+300,U+302,U+304,U+30c,U+2044,U+2070,U+2074-2079,U+2080-2089;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans';
+  src: url('/fonts/harmonyos/Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+a,U+20-7e,U+a0-17f,U+18f,U+192,U+1a0-1a1,U+1af-1b0,U+1cd-1dc,U+1e5,U+1e7,U+1e9,U+1ef-1f0,U+1f9-1ff,U+218-21b,U+21f,U+237,U+2c6-2c7,U+2c9,U+300,U+302,U+304,U+30c,U+2044,U+2070,U+2074-2079,U+2080-2089;
+}
+
+@font-face {
+  font-family: 'HarmonyOS Sans';
+  src: url('/fonts/harmonyos/Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+a,U+20-7e,U+a0-17f,U+18f,U+192,U+1a0-1a1,U+1af-1b0,U+1cd-1dc,U+1e5,U+1e7,U+1e9,U+1ef-1f0,U+1f9-1ff,U+218-21b,U+21f,U+237,U+2c6-2c7,U+2c9,U+300,U+302,U+304,U+30c,U+2044,U+2070,U+2074-2079,U+2080-2089;
+}
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Sora Variable', system-ui, -apple-system, sans-serif;
+  --font-sans: 'HarmonyOS Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
