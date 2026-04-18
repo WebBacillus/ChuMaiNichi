@@ -25,7 +25,7 @@ import {
   type PlayerData,
   type PlayerSong,
   type SongData,
-} from "./maimai-rating";
+} from "./maimai-rating.js";
 
 // --- Types ---
 
