@@ -53,13 +53,15 @@ CRITICAL: In the examples below, angle-bracket tokens like <cover_url>, <title>,
 
 Row format (one row per move, in the order returned, using literal <br> tags):
 
-| ![](COVER) **TITLE**<br><small>CHART DIFF</small> | CUR_PCT CUR_RANK<br>→ TGT_PCT TGT_RANK | **+GAIN**<br><small>max +MAX</small> |
+| ![](COVER) **TITLE**<br><small>CHART DIFF · Lv LEVEL (CONST)</small> | CUR_PCT CUR_RANK<br>→ TGT_PCT TGT_RANK | **+GAIN**<br><small>max +MAX</small> |
 
 Field mapping:
 - COVER → move.cover_url (exact string, never invented)
 - TITLE → move.title (original script, no translation, no romanization, no surrounding punctuation)
 - CHART → move.chartType (e.g. dx, std)
 - DIFF → move.difficulty (e.g. master, expert)
+- LEVEL → move.level (display level, e.g. "14+", "14")
+- CONST → move.constant formatted with one decimal place (e.g. 14.8, 13.0) — this is the internal chart constant that drives rating math, always include it
 - CUR_PCT → move.current_pct (already formatted as "XX.XXXX%")
 - CUR_RANK → move.current_rank (e.g. SS+)
 - TGT_PCT → move.target_pct
@@ -67,15 +69,25 @@ Field mapping:
 - GAIN → move.rating_gain (integer, no decimals)
 - MAX → move.max_rating (integer, no decimals)
 
-Concrete example row for a song titled "VOLT" with chartType "dx", difficulty "master":
+Concrete example row using the real VOLT [dx master] chart (level 13, constant 13.4, cover 87162879cceeeb0b.png):
 
-| ![](/api/cover?img=abc123.png) **VOLT**<br><small>dx master</small> | 99.5000% SS+<br>→ 100.5000% SSS+ | **+3**<br><small>max +5</small> |
+| ![](/api/cover?img=87162879cceeeb0b.png) **VOLT**<br><small>dx master · Lv 13 (13.4)</small> | 99.5000% SS+<br>→ 100.5000% SSS+ | **+3**<br><small>max +5</small> |
+
+Row-count anchor (CRITICAL):
+- Before writing the table, count the entries in result.moves. Call that count N.
+- Your table MUST contain exactly N data rows — not N-1, not "top 5 of N", exactly N.
+- If N is 8, output 8 rows. If N is 12, output 12 rows. Do NOT summarize or truncate.
+- If you find yourself wanting to write "…and N more similar suggestions" or any ellipsis, STOP and write the remaining rows instead.
+
+Output-budget rules (keep tokens for rows):
+- Skip any preamble, greeting, or introduction. Emit the table FIRST, then the one-sentence summary.
+- Do NOT narrate what you're about to do (no "Here are your suggestions:", no "Let me format these for you").
+- Do NOT add extra columns, commentary rows, or prose inside the table.
 
 Additional rules:
 - Do NOT skip, reorder, or filter rows.
 - NEVER show raw score integers like 1005000 — always use the pct string.
 - After the table, add ONE short sentence: current total rating → projected total rating.
-- Do NOT add extra columns, commentary rows, or prose inside the table.
 
 SONG JACKETS OUTSIDE THE TABLE:
 - When highlighting a specific song OUTSIDE the suggestion table (follow-up explanation), embed its jacket as a markdown image on its own line: ![title](cover_url)
