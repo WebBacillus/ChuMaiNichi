@@ -24,12 +24,12 @@ export default function Header({
       <div className="app-header__spacer" />
       <button
         type="button"
-        className="icon-btn"
-        title="Refresh scrape"
+        className="text-btn"
         onClick={onRefresh}
         disabled={refreshing}
       >
-        <RotateCw size={18} className={refreshing ? "icon-spin" : ""} />
+        <RotateCw size={16} className={refreshing ? "icon-spin" : ""} />
+        <span>Refresh scores</span>
       </button>
       <button
         type="button"
