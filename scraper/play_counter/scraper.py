@@ -3,7 +3,9 @@ import json
 import re
 import time
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+BKK = timezone(timedelta(hours=7))
 
 import requests
 from playwright.async_api import async_playwright
@@ -148,7 +150,7 @@ async def capture_failure_details(page) -> str:
 
 async def save_failure_trace(context, game: str) -> str:
     """Save a Playwright trace for debugging failed attempts."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(BKK).strftime("%Y%m%d_%H%M%S")
     trace_path = TRACES_DIR / f"{game}_failure_{timestamp}.zip"
     try:
         await context.tracing.stop(path=str(trace_path))
