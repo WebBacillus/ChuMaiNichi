@@ -29,7 +29,7 @@ export default function Header({
         disabled={refreshing}
       >
         <RotateCw size={16} className={refreshing ? "icon-spin" : ""} />
-        <span>Refresh scores</span>
+        <span>{refreshing ? "Please wait ~2 min" : "Refresh scores"}</span>
       </button>
       <button
         type="button"

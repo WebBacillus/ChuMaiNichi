@@ -32,9 +32,9 @@ function App() {
     setRefreshing(true);
     try {
       await triggerRefresh();
+      window.setTimeout(() => setRefreshing(false), 2 * 60 * 1000);
     } catch (e) {
       console.error(e);
-    } finally {
       setRefreshing(false);
     }
   }
