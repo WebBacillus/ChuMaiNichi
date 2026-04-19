@@ -14,7 +14,7 @@ CREATE TABLE daily_play (
 CREATE TABLE user_scores (
   id         SERIAL PRIMARY KEY,
   game       TEXT NOT NULL,
-  scraped_at TIMESTAMPTZ DEFAULT NOW(),
+  scraped_at TIMESTAMP NOT NULL,  -- naive Asia/Bangkok wall-clock
   data       JSONB NOT NULL
 );`.trim();
 

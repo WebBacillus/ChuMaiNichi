@@ -11,15 +11,37 @@ CREATE TABLE IF NOT EXISTS public.daily_play (
     failure_reason       TEXT
 );
 
--- Per-song score snapshots (JSONB from chuumai-tools)
+-- Per-song score snapshots (JSONB from chuumai-tools). scraped_at is naive
+-- Asia/Bangkok wall-clock, matching daily_play.play_date semantics.
 CREATE TABLE IF NOT EXISTS public.user_scores (
     id         SERIAL PRIMARY KEY,
     game       TEXT NOT NULL,
-    scraped_at TIMESTAMPTZ DEFAULT NOW(),
+    scraped_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok'),
     data       JSONB NOT NULL
 );
 
--- Collapse same-day snapshots (keep newest per game per BKK day) before
+-- Migrate legacy TIMESTAMPTZ column (and its old index) to naive BKK.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'user_scores'
+          AND column_name = 'scraped_at'
+          AND data_type = 'timestamp with time zone'
+    ) THEN
+        DROP INDEX IF EXISTS public.user_scores_game_day_bkk_key;
+        ALTER TABLE public.user_scores
+            ALTER COLUMN scraped_at TYPE TIMESTAMP
+            USING (scraped_at AT TIME ZONE 'Asia/Bangkok');
+        ALTER TABLE public.user_scores
+            ALTER COLUMN scraped_at SET DEFAULT (NOW() AT TIME ZONE 'Asia/Bangkok');
+        ALTER TABLE public.user_scores
+            ALTER COLUMN scraped_at SET NOT NULL;
+    END IF;
+END $$;
+
+-- Collapse same-day snapshots (keep newest per game per day) before
 -- enforcing the unique index. Safe to re-run: once the index exists no
 -- duplicates can be created.
 DELETE FROM public.user_scores
@@ -27,7 +49,7 @@ WHERE id IN (
     SELECT id FROM (
         SELECT id,
                ROW_NUMBER() OVER (
-                   PARTITION BY game, (scraped_at AT TIME ZONE 'Asia/Bangkok')::date
+                   PARTITION BY game, scraped_at::date
                    ORDER BY scraped_at DESC, id DESC
                ) AS rn
         FROM public.user_scores
@@ -35,5 +57,5 @@ WHERE id IN (
     WHERE rn > 1
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS user_scores_game_day_bkk_key
-    ON public.user_scores (game, ((scraped_at AT TIME ZONE 'Asia/Bangkok')::date));
+CREATE UNIQUE INDEX IF NOT EXISTS user_scores_game_day_key
+    ON public.user_scores (game, (scraped_at::date));

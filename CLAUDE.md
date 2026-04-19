@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS daily_play (
 CREATE TABLE IF NOT EXISTS user_scores (
     id         SERIAL PRIMARY KEY,
     game       TEXT NOT NULL,           -- 'maimai' or 'chunithm'
-    scraped_at TIMESTAMPTZ DEFAULT NOW(),
+    scraped_at TIMESTAMP NOT NULL,      -- naive Asia/Bangkok wall-clock
     data       JSONB NOT NULL           -- Full chuumai-tools output
 );
 ```

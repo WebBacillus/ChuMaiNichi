@@ -112,7 +112,9 @@ async def import_user_data(data: dict[str, Any], game: str) -> dict[str, Any]:
     Returns:
         dict with 'game' and 'scraped_at' keys
     """
-    scraped_at = datetime.now(timezone.utc)
+    # Naive Asia/Bangkok wall-clock matches the TIMESTAMP column and keeps
+    # scraped_at consistent with daily_play.play_date (also BKK-local).
+    scraped_at = datetime.now(BKK).replace(tzinfo=None)
 
     conn = await connect_db()
     try:
@@ -120,8 +122,7 @@ async def import_user_data(data: dict[str, Any], game: str) -> dict[str, Any]:
             """
             INSERT INTO public.user_scores (game, scraped_at, data)
             VALUES ($1, $2, $3)
-            ON CONFLICT (game, ((scraped_at AT TIME ZONE 'Asia/Bangkok')::date))
-            DO UPDATE SET
+            ON CONFLICT (game, (scraped_at::date)) DO UPDATE SET
                 scraped_at = EXCLUDED.scraped_at,
                 data = EXCLUDED.data
             """,
