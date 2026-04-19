@@ -219,9 +219,7 @@ describe("calcRating", () => {
 
 describe("getCoverUrl", () => {
   it("returns full URL for valid filename", () => {
-    expect(getCoverUrl("abc123.png")).toBe(
-      "https://maimai.wonderhoy.me/api/imageProxy?img=abc123.png",
-    );
+    expect(getCoverUrl("abc123.png")).toBe("/api/cover?img=abc123.png");
   });
 
   it("returns empty string for empty input", () => {

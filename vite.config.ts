@@ -8,6 +8,7 @@ import { viteHandler as queryViteHandler } from "./api/query";
 import chatHandler from "./api/chat";
 import refreshHandler from "./api/refresh";
 import modelHandler from "./api/model";
+import coverHandler from "./api/cover";
 import { toViteMiddleware } from "./src/api/vite-adapter";
 
 /**
@@ -30,6 +31,10 @@ function devApiProxy(): Plugin {
       server.middlewares.use(
         "/api/model",
         toViteMiddleware(modelHandler, { skipAuth: true }),
+      );
+      server.middlewares.use(
+        "/api/cover",
+        toViteMiddleware(coverHandler),
       );
     },
   };

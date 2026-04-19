@@ -21,6 +21,8 @@ interface SuggestedMove {
   rating_gain: number;
   section?: string;
   type?: "improve" | "new";
+  image?: string;
+  cover_url?: string;
 }
 
 interface SuggestResult {
@@ -118,6 +120,16 @@ function SuggestBody({ result }: { result: SuggestResult }) {
       <div className="song-list">
         {moves.map((s, i) => (
           <div className="song-row" key={i}>
+            {s.cover_url ? (
+              <img
+                className="song-jacket"
+                src={s.cover_url}
+                alt=""
+                loading="lazy"
+              />
+            ) : (
+              <div className="song-jacket song-jacket--placeholder" aria-hidden />
+            )}
             <span className="song-diff" data-d={shortDiff(s.difficulty)}>
               {shortDiff(s.difficulty)}
             </span>

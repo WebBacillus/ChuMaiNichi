@@ -82,8 +82,7 @@ export const RANK_FACTORS: readonly [number, number, string][] = [
   [800000, 0.136, "A"],
 ];
 
-export const COVER_BASE_URL =
-  "https://maimai.wonderhoy.me/api/imageProxy?img=";
+export const COVER_BASE_URL = "/api/cover?img=";
 
 // --- Functions ---
 
