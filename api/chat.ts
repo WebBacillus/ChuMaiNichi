@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import OpenAI from "openai";
 import type {
+  ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
@@ -65,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const MAX_ROUNDS = 5;
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const completionOpts: Record<string, unknown> = {
+      const completionOpts: ChatCompletionCreateParamsStreaming = {
         model,
         messages,
         tools,
@@ -80,9 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         completionOpts.reasoning_effort = "low";
         completionOpts.max_tokens = 32768;
       }
-      const stream = await client.chat.completions.create(
-        completionOpts as Parameters<typeof client.chat.completions.create>[0],
-      );
+      const stream = await client.chat.completions.create(completionOpts);
 
       let content = "";
       const toolCalls: {
