@@ -16,14 +16,16 @@ Environment:
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import asyncpg
 from pydantic import BaseModel, ValidationError
 
-from play_counter.db import init_schema
+from play_counter.db import init_schema, upsert_daily_play_single_game
+
+BKK = timezone(timedelta(hours=7))
 
 # ---- Configuration ----
 MAX_SNAPSHOTS_PER_GAME = 5
@@ -99,19 +101,19 @@ async def connect_db():
     return await asyncpg.connect(database_url)
 
 
-async def import_user_data(data: dict[str, Any]) -> dict[str, Any]:
+async def import_user_data(data: dict[str, Any], game: str) -> dict[str, Any]:
     """
     Import user data into the user_scores table.
-    
+
     Args:
         data: Parsed JSON data from chuumai-tools output
-        
+        game: 'maimai' or 'chunithm'
+
     Returns:
         dict with 'game' and 'scraped_at' keys
     """
-    game = detect_game(data)
     scraped_at = datetime.now(timezone.utc)
-    
+
     conn = await connect_db()
     try:
         await conn.execute(
@@ -127,6 +129,23 @@ async def import_user_data(data: dict[str, Any]) -> dict[str, Any]:
         return {"game": game, "scraped_at": scraped_at}
     finally:
         await conn.close()
+
+
+def extract_daily_stats(data: dict[str, Any], game: str) -> tuple[int, float | int] | None:
+    """Extract (cumulative_play_count, rating) from profile, or None if missing.
+
+    maimai uses `playCountTotal` + int rating; chunithm uses `playCount` + float rating.
+    """
+    profile = data.get("profile", {})
+    if game == "maimai":
+        cumulative = profile.get("playCountTotal")
+    else:
+        cumulative = profile.get("playCount")
+    rating = profile.get("rating")
+
+    if cumulative is None or rating is None:
+        return None
+    return cumulative, rating
 
 
 async def prune_old_snapshots(conn: asyncpg.Connection) -> int:
@@ -290,13 +309,28 @@ async def main(outputs_dir: Path | None = None):
     
     print(f"Found {len(json_files)} JSON file(s)")
     
+    today_str = datetime.now(BKK).strftime("%Y-%m-%d")
+
     imported_count = 0
     for json_file in json_files:
         try:
             print(f"Processing {json_file.name}...")
             data = read_json_file(json_file)
-            await import_user_data(data)
+            game = detect_game(data)
+            await import_user_data(data, game)
             imported_count += 1
+
+            # Refresh today's daily_play row with the latest rating + play count.
+            # Column-scoped so maimai and chunithm can refresh independently.
+            stats = extract_daily_stats(data, game)
+            if stats is None:
+                print(f"[WARN] {game} profile missing rating or play count; skipping daily_play")
+            else:
+                cumulative, rating = stats
+                try:
+                    await upsert_daily_play_single_game(game, today_str, cumulative, rating)
+                except Exception as e:
+                    print(f"[ERROR] daily_play upsert failed for {game}: {e}")
         except ValidationError as e:
             print(f"[ERROR] Invalid data in {json_file.name}: {e}")
         except Exception as e:

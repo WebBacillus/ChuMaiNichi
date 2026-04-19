@@ -2,6 +2,7 @@ from pathlib import Path
 
 import asyncpg
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from play_counter.config import DATABASE_URL
 
@@ -135,6 +136,56 @@ async def upsert_daily_play(
         print(
             f"[OK] Cloud DB saved: {date_str} | Maimai new: {maimai_new}, Chunithm new: {chunithm_new} | "
             f"Maimai cumulative: {maimai_cumulative}, Chunithm cumulative: {chunithm_cumulative}"
+        )
+    finally:
+        await conn.close()
+
+
+async def upsert_daily_play_single_game(
+    game: str,
+    date_str: str,
+    cumulative: int,
+    rating: float | int | Decimal | None,
+) -> None:
+    """Upsert one game's columns for a date without clobbering the other game.
+
+    Used by the chuumai-tools import path (refresh button) so maimai and chunithm
+    can refresh independently. new_plays is recomputed from the previous day's
+    cumulative so repeated calls are idempotent.
+    """
+    _validate_game(game)
+
+    # chunithm rating is a float; round to 2 decimals via Decimal so the NUMERIC
+    # column doesn't end up with binary-float noise.
+    if rating is not None and not isinstance(rating, (int, Decimal)):
+        rating = Decimal(str(rating)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+    previous = await get_previous_cumulative(game, date_str)
+    new_plays = 0 if previous == 0 else max(0, cumulative - previous)
+
+    play_count_col = f"{game}_play_count"
+    cumulative_col = f"{game}_cumulative"
+    rating_col = f"{game}_rating"
+
+    query = f"""
+        INSERT INTO public.daily_play
+            (play_date, {play_count_col}, {cumulative_col}, {rating_col})
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (play_date) DO UPDATE SET
+            {play_count_col} = EXCLUDED.{play_count_col},
+            {cumulative_col} = EXCLUDED.{cumulative_col},
+            {rating_col} = EXCLUDED.{rating_col}
+    """
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+
+    conn = await connect_db()
+    try:
+        await conn.execute(query, date_obj, new_plays, cumulative, rating)
+        print(
+            f"[OK] daily_play upsert: {date_str} {game} "
+            f"cumulative={cumulative}, rating={rating}, new_plays={new_plays}"
         )
     finally:
         await conn.close()

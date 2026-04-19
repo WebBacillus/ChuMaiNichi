@@ -230,6 +230,7 @@ dist/
 # Scraper outputs and player data (private)
 scripts/outputs/
 scripts/maimai-player.json
+scripts/chunithm-player.json
 
 # Claude Code
 skills-lock.json
