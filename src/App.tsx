@@ -25,7 +25,20 @@ function App() {
       .then(() => setAuthed(true))
       .catch(() => setAuthed(false));
     const { autoOpenChat } = useSettingsStore.getState();
-    setChatOpen(autoOpenChat);
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1201px)").matches;
+    setChatOpen(autoOpenChat && isDesktop);
+  }, [setChatOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 1200px)");
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) setChatOpen(false);
+    };
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
   }, [setChatOpen]);
 
   async function handleRefresh() {

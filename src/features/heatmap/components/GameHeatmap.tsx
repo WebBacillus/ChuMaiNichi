@@ -9,6 +9,8 @@ import { trimOverflow } from "../lib/trim-overflow";
 import { StatsBar } from "./StatsBar";
 import { Legend } from "./Legend";
 
+const CELL_SIZE = 15;
+
 export function GameHeatmap({
   game,
   data,
@@ -70,8 +72,8 @@ export function GameHeatmap({
           subDomain: {
             type: "ghDay",
             radius: 2,
-            width: 15,
-            height: 15,
+            width: CELL_SIZE,
+            height: CELL_SIZE,
             gutter: 4,
           },
           date: { start: new Date(`${year}-01-01T00:00:00`) },
