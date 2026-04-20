@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DailyRow, Game } from "../types/types";
 import CalHeatmap from "cal-heatmap";
 import { computeStats } from "../lib/stats";
@@ -8,6 +8,8 @@ import CalendarLabel from "cal-heatmap/plugins/CalendarLabel";
 import { trimOverflow } from "../lib/trim-overflow";
 import { StatsBar } from "./StatsBar";
 import { Legend } from "./Legend";
+
+const CELL_SIZE = 15;
 
 export function GameHeatmap({
   game,
@@ -19,45 +21,13 @@ export function GameHeatmap({
   year: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const calRef = useRef<CalHeatmap | null>(null);
   const [tapInfo, setTapInfo] = useState("");
-  const [cellSize, setCellSize] = useState(15);
 
   const stats = useMemo(
     () => computeStats(data, game, year),
     [data, game, year],
   );
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    let timeoutId: number | null = null;
-    const computeNow = (width: number) => {
-      if (width <= 0) return;
-      const isPhone =
-        typeof window !== "undefined" &&
-        window.matchMedia("(max-width: 640px)").matches;
-      const min = isPhone ? 15 : 9;
-      const available = width - 24 - 12 * 4;
-      const next = Math.max(min, Math.min(15, Math.floor(available / 53) - 4));
-      setCellSize((prev) => (prev === next ? prev : next));
-    };
-    const scheduleCompute = (width: number) => {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => computeNow(width), 120);
-    };
-    computeNow(el.clientWidth);
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) scheduleCompute(entry.contentRect.width);
-    });
-    ro.observe(el);
-    return () => {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-      ro.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -102,8 +72,8 @@ export function GameHeatmap({
           subDomain: {
             type: "ghDay",
             radius: 2,
-            width: cellSize,
-            height: cellSize,
+            width: CELL_SIZE,
+            height: CELL_SIZE,
             gutter: 4,
           },
           date: { start: new Date(`${year}-01-01T00:00:00`) },
@@ -149,7 +119,7 @@ export function GameHeatmap({
               key: "left",
               text: () => ["", "Mon", "", "Wed", "", "Fri", ""],
               textAlign: "end",
-              width: cellSize < 12 ? 20 : 24,
+              width: 24,
               padding: [25, 0, 0, 0],
             },
           ],
@@ -202,14 +172,14 @@ export function GameHeatmap({
       wrapper.removeEventListener("click", handleClick);
       cal.destroy();
     };
-  }, [game, data, year, cellSize]);
+  }, [game, data, year]);
 
   const gameName = game === "maimai" ? "maimai" : "CHUNITHM";
 
   return (
     <div className="w-full max-w-[1100px]">
       <StatsBar stats={stats} year={year} />
-      <div ref={scrollRef} className="relative overflow-x-auto scrollbar-thin">
+      <div className="relative overflow-x-auto scrollbar-thin">
         <div
           ref={containerRef}
           role="figure"
