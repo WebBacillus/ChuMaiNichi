@@ -25,7 +25,10 @@ function App() {
       .then(() => setAuthed(true))
       .catch(() => setAuthed(false));
     const { autoOpenChat } = useSettingsStore.getState();
-    setChatOpen(autoOpenChat);
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1025px)").matches;
+    setChatOpen(autoOpenChat && isDesktop);
   }, [setChatOpen]);
 
   async function handleRefresh() {
