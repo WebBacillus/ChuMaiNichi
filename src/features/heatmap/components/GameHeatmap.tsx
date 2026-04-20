@@ -32,7 +32,8 @@ export function GameHeatmap({
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const compute = (width: number) => {
+    let timeoutId: number | null = null;
+    const computeNow = (width: number) => {
       if (width <= 0) return;
       const isPhone =
         typeof window !== "undefined" &&
@@ -42,13 +43,20 @@ export function GameHeatmap({
       const next = Math.max(min, Math.min(15, Math.floor(available / 53) - 4));
       setCellSize((prev) => (prev === next ? prev : next));
     };
-    compute(el.clientWidth);
+    const scheduleCompute = (width: number) => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => computeNow(width), 120);
+    };
+    computeNow(el.clientWidth);
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) compute(entry.contentRect.width);
+      for (const entry of entries) scheduleCompute(entry.contentRect.width);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      ro.disconnect();
+    };
   }, []);
 
   useEffect(() => {
