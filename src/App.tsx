@@ -27,7 +27,7 @@ function App() {
     const { autoOpenChat } = useSettingsStore.getState();
     const isDesktop =
       typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 1025px)").matches;
+      window.matchMedia("(min-width: 1201px)").matches;
     setChatOpen(autoOpenChat && isDesktop);
   }, [setChatOpen]);
 

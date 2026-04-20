@@ -252,6 +252,10 @@ h1 {
   gap: 0.5rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-header__logo {
@@ -1384,7 +1388,7 @@ rect.heatmap-today {
 }
 
 /* ── Responsive: tablet + mobile overlay ──────── */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .app-shell,
   .app-shell[data-chat-open="true"] {
     grid-template-columns: 1fr;
