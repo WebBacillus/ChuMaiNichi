@@ -34,8 +34,12 @@ export function GameHeatmap({
     if (!el) return;
     const compute = (width: number) => {
       if (width <= 0) return;
+      const isPhone =
+        typeof window !== "undefined" &&
+        window.matchMedia("(max-width: 640px)").matches;
+      const min = isPhone ? 15 : 9;
       const available = width - 24 - 12 * 4;
-      const next = Math.max(9, Math.min(15, Math.floor(available / 53) - 4));
+      const next = Math.max(min, Math.min(15, Math.floor(available / 53) - 4));
       setCellSize((prev) => (prev === next ? prev : next));
     };
     compute(el.clientWidth);
