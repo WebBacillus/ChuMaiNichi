@@ -55,7 +55,7 @@ export const SUGGEST_SONGS_TOOL: ChatCompletionTool = {
 };
 
 const FORBIDDEN_SQL =
-  /;|--|\/\*|\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|COPY|INTO)\b/i;
+  /;|--|\/\*|\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|COPY|INTO)\b/i;
 
 export async function executeTool(
   name: string,
@@ -64,8 +64,9 @@ export async function executeTool(
   if (name === "query_database") {
     const sql = args.sql as string;
     const normalized = sql.trim().replace(/\s*;+\s*$/, "");
-    if (!normalized.toUpperCase().startsWith("SELECT")) {
-      return { error: "Only SELECT statements are allowed", sql };
+    const upper = normalized.toUpperCase();
+    if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) {
+      return { error: "Only SELECT or WITH (CTE) statements are allowed", sql };
     }
     if (FORBIDDEN_SQL.test(normalized)) {
       return {
