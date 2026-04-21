@@ -162,8 +162,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e: unknown) {
     console.error("Chat error:", e);
     res.write(
-      `data: ${JSON.stringify({ type: "error", error: "Chat request failed" })}\n\n`,
+      `data: ${JSON.stringify({ type: "error", error: toUserError(e) })}\n\n`,
     );
     return res.end();
   }
+}
+
+function toUserError(e: unknown): string {
+  const err = e as {
+    status?: number;
+    message?: string;
+    error?: { type?: string; message?: string };
+  };
+  const status = err?.status;
+  const providerType = err?.error?.type;
+  const providerMsg = err?.error?.message;
+
+  if (status === 401) return "AI provider auth failed — check your API key.";
+  if (status === 429) return "Rate limited by AI provider — wait a moment and retry.";
+  if (status === 529 || providerType === "overloaded_error") {
+    return "AI provider is overloaded — retry in a moment or switch provider.";
+  }
+  if (status && status >= 500) {
+    return `AI provider error (${status}) — retry in a moment.`;
+  }
+  if (providerMsg) return providerMsg.slice(0, 200);
+  if (err?.message) return err.message.slice(0, 200);
+  return "Chat request failed";
 }

@@ -121,12 +121,20 @@ export default function ChatPanel() {
 
       setMessages((prev) => [...prev, userMsg, streamingMsg]);
 
-      const apiHistory: ChatMessage[] = [...messages, userMsg]
-        .filter(
-          (m): m is Extract<UiMessage, { role: "user" | "assistant" }> =>
-            m.role === "user" || m.role === "assistant",
-        )
-        .map((m) => ({ role: m.role, content: m.content }));
+      // Build apiHistory: the LLM can't see tool UI messages, so after a
+      // tool call the conversation can contain empty or consecutive assistant
+      // turns that many providers reject. Drop empties and merge runs.
+      const apiHistory: ChatMessage[] = [];
+      for (const m of [...messages, userMsg]) {
+        if (m.role !== "user" && m.role !== "assistant") continue;
+        if (m.role === "assistant" && !m.content) continue;
+        const last = apiHistory[apiHistory.length - 1];
+        if (last && last.role === "assistant" && m.role === "assistant") {
+          last.content = `${last.content}\n\n${m.content}`;
+        } else {
+          apiHistory.push({ role: m.role, content: m.content });
+        }
+      }
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -175,7 +183,11 @@ export default function ChatPanel() {
         for (let i = next.length - 1; i >= 0; i--) {
           const m = next[i];
           if (m.role === "assistant" && m.streaming) {
-            next[i] = { ...m, streaming: false };
+            if (!m.content) {
+              next.splice(i, 1);
+            } else {
+              next[i] = { ...m, streaming: false };
+            }
             break;
           }
         }
