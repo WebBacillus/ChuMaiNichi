@@ -9,13 +9,44 @@ import ToolCall from "./ToolCall";
 import EmptyState from "./EmptyState";
 
 type UiMessage =
-  | { role: "user"; content: string }
+  | { role: "user"; content: string; timestamp?: string }
   | { role: "assistant"; content: string; streaming?: boolean }
   | { role: "tool"; name: string; result: unknown }
   | { role: "error"; content: string };
 
 const CHAT_STORAGE_KEY = "chumai-chat-messages";
 const CHAT_MAX_STORED = 100;
+
+function currentTimestampIct(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const p = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${p("year")}-${p("month")}-${p("day")} ${p("hour")}:${p("minute")} ICT`;
+}
+
+function formatAgo(timestamp: string, now: Date): string {
+  const m = timestamp.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}) ICT$/);
+  if (!m) return "";
+  const [, y, mo, d, h, mi] = m;
+  const then = new Date(`${y}-${mo}-${d}T${h}:${mi}:00+07:00`);
+  const diffMs = now.getTime() - then.getTime();
+  if (diffMs < 60_000) return "just now";
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  const rm = mins % 60;
+  if (hrs < 24) return rm > 0 ? `${hrs}h ${rm}m ago` : `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  const rh = hrs % 24;
+  return rh > 0 ? `${days}d ${rh}h ago` : `${days}d ago`;
+}
 
 function loadMessages(): UiMessage[] {
   try {
@@ -29,7 +60,12 @@ function loadMessages(): UiMessage[] {
       const r = (m as { role?: unknown }).role;
       const content = (m as { content?: unknown }).content;
       if (r === "user" && typeof content === "string") {
-        valid.push({ role: "user", content });
+        const ts = (m as { timestamp?: unknown }).timestamp;
+        valid.push({
+          role: "user",
+          content,
+          ...(typeof ts === "string" ? { timestamp: ts } : {}),
+        });
       } else if (r === "assistant" && typeof content === "string" && content) {
         valid.push({ role: "assistant", content });
       } else if (r === "tool") {
@@ -112,7 +148,11 @@ export default function ChatPanel() {
       setInput("");
       setBusy(true);
 
-      const userMsg: UiMessage = { role: "user", content: text };
+      const userMsg: UiMessage = {
+        role: "user",
+        content: text,
+        timestamp: currentTimestampIct(),
+      };
       const streamingMsg: UiMessage = {
         role: "assistant",
         content: "",
@@ -124,15 +164,26 @@ export default function ChatPanel() {
       // Build apiHistory: the LLM can't see tool UI messages, so after a
       // tool call the conversation can contain empty or consecutive assistant
       // turns that many providers reject. Drop empties and merge runs.
+      // User messages are prefixed with their send timestamp and a
+      // pre-computed "X ago" delta so the model can reason about when
+      // each was sent without doing datetime math itself.
       const apiHistory: ChatMessage[] = [];
+      const now = new Date();
       for (const m of [...messages, userMsg]) {
         if (m.role !== "user" && m.role !== "assistant") continue;
         if (m.role === "assistant" && !m.content) continue;
         const last = apiHistory[apiHistory.length - 1];
+        let content = m.content;
+        if (m.role === "user" && m.timestamp) {
+          const ago = formatAgo(m.timestamp, now);
+          content = ago
+            ? `[${m.timestamp}, ${ago}] ${m.content}`
+            : `[${m.timestamp}] ${m.content}`;
+        }
         if (last && last.role === "assistant" && m.role === "assistant") {
-          last.content = `${last.content}\n\n${m.content}`;
+          last.content = `${last.content}\n\n${content}`;
         } else {
-          apiHistory.push({ role: m.role, content: m.content });
+          apiHistory.push({ role: m.role, content });
         }
       }
 
