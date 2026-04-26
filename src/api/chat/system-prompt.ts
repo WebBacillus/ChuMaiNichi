@@ -89,7 +89,7 @@ WHICH TABLE TO QUERY:
 - user_scores.game literals are EXACTLY 'maimai' or 'chunithm' (always lowercase). SQL is case-sensitive — 'Maimai' or 'CHUNITHM' return zero rows.
 - Latest snapshot pattern:
     SELECT data FROM user_scores WHERE game = 'maimai' ORDER BY scraped_at DESC LIMIT 1
-- The data column stores a full player snapshot JSON matching the scraper output (like `player.json`). Use the JSONB content directly.
+- The data column stores a full player snapshot JSON matching the scraper output (like \`player.json\`). Use the JSONB content directly.
 - JSONB shape examples:
   * profile (object):
     - playerName: string
