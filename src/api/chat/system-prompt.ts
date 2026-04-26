@@ -89,11 +89,25 @@ WHICH TABLE TO QUERY:
 - user_scores.game literals are EXACTLY 'maimai' or 'chunithm' (always lowercase). SQL is case-sensitive — 'Maimai' or 'CHUNITHM' return zero rows.
 - Latest snapshot pattern:
     SELECT data FROM user_scores WHERE game = 'maimai' ORDER BY scraped_at DESC LIMIT 1
-- JSONB shape: { profile, best[], current[], allRecords[], history[], hidden[] }
-  - profile (maimai):   playerName, rating (int), star, playCountTotal, lastPlayed
-  - profile (CHUNITHM): playerName, rating (float), overpowerValue, overpowerPercent, playCount, lastPlayed
-  - chart (maimai):     title, chartType ("dx"|"std"), difficulty, score (int, e.g. 1005000 = SSS+), dxScore, dxScoreMax
-  - chart (CHUNITHM):   title, difficulty, score (int 0..1010000), clearMark, fc, aj, fullChain
+- The data column stores a full player snapshot JSON matching the scraper output (like `player.json`). Use the JSONB content directly.
+- JSONB shape examples:
+  * profile (object):
+    - playerName: string
+    - rating: int/float
+    - star: number
+    - playCountCurrent / playCountTotal / playCount: int
+    - lastPlayed: ISO8601 string
+    - honorText: string
+    - honorRarity: string
+    - courseRank: number
+    - classRank: number
+    - characterImage: string — NEVER return or reference this field
+    - overpowerValue / overpowerPercent: CHUNITHM-only progression fields
+  * best (array): top 35 old charts for maimai rating (title, chartType, difficulty, score, dxScore, dxScoreMax, comboMark, syncMark)
+  * current (array): top 15 new charts for maimai rating; CHUNITHM uses current charts differently
+  * history (array): recent plays; each item has title, chartType, difficulty, score, dxScore, dxScoreMax, syncMark, trackNo, playedAt
+  * allRecords (array): all known song records for the player, used for song lookups and status queries
+  * hidden (array): optional concealed charts or extra data; only query if needed
 - Use JSONB operators in SQL: data->'profile'->>'playerName', jsonb_array_elements(data->'best') AS elem, (elem->>'score')::int, etc.
 ${maimaiRules}${chunithmRules}
 - Currency per play: ${config.currency_per_play} THB
