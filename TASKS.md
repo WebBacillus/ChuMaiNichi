@@ -161,7 +161,7 @@ After this: tell teammates "pull main, read CLAUDE.md, start on your section."
    - Read `config.json` to determine which games to scrape
    - Run Docker containers:
      - maimai: `ghcr.io/leomotors/maimai-scraper:v1` with `VERSION=CiRCLE`
-     - chunithm: `ghcr.io/leomotors/chunithm-scraper:v6` with `VERSION=XVRS`
+     - chunithm: `ghcr.io/leomotors/chunithm-scraper:v6` with `VERSION=XVRSX`
    - Mount `outputs/` to capture JSON
    - Run `import_user_data.py` to write to Neon
    - NEVER commit output to git (privacy)

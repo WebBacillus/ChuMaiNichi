@@ -67,7 +67,7 @@ jobs:
           docker run \
             --rm \
             -v ${{ github.workspace }}/outputs:/app/outputs \
-            -e VERSION=XVRS \
+            -e VERSION=XVRSX \
             -e USERNAME=${{ secrets.SEGA_USERNAME }} \
             -e PASSWORD=${{ secrets.SEGA_PASSWORD }} \
             -e CHUNI_SERVICE_URL="$CHUNI_SERVICE_URL" \

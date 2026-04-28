@@ -361,7 +361,7 @@ The tool itself does not clamp. Instead the staging guard lives in `src/api/chat
 - **uv, not pip**: Always use `uv sync` to install, `uv run` to execute. In GitHub Actions, use `astral-sh/setup-uv@v5`.
 - **One row per date**: The `daily_play` table combines both games in a single row. Never insert two rows for the same date.
 - **No secrets in browser**: All API keys and connection strings must stay in Vercel env vars or GitHub secrets. The React app calls `/api/*` routes only.
-- **chuumai-tools Docker images**: chunithm uses `ghcr.io/leomotors/chunithm-scraper:v6`, maimai uses `ghcr.io/leomotors/maimai-scraper:v1`. Version env vars: `VERSION=XVRS` (chunithm), `VERSION=CiRCLE` (maimai).
+- **chuumai-tools Docker images**: chunithm uses `ghcr.io/leomotors/chunithm-scraper:v6`, maimai uses `ghcr.io/leomotors/maimai-scraper:v1`. Version env vars: `VERSION=XVRSX` (chunithm), `VERSION=CiRCLE` (maimai).
 - **Timezone**: All scraping and date logic uses `Asia/Bangkok` (UTC+7).
 - **Currency**: Default cost per play is 40 THB, configurable in settings.
 
