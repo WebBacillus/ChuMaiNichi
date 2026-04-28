@@ -261,15 +261,26 @@ def find_image_for_game(
 ) -> Path | None:
     """Locate an image file in outputs_dir that pairs with this JSON/game.
 
-    Strategy: same stem first (e.g. full-maimai-CiRCLE.json → .webp),
-    then the newest hint-matching image whose mtime is no older than the
-    JSON itself (minus a small clock-skew cushion). The mtime check stops
-    us re-importing leftovers from a previous local run.
+    chuumai-tools writes the JSON pair as
+        outputs/{lastPlayed}-{jobId}.json        (imgGenInput)
+        outputs/full-{lastPlayed}-{jobId}.json   (fullData — what we read)
+        outputs/{lastPlayed}-{jobId}.png         (rendered image)
+    so the image stem is the JSON stem with the leading "full-" stripped.
+
+    We try, in order: (1) the chuumai-tools convention; (2) same stem
+    as JSON (in case a future scraper version renames things); (3) any
+    image in the directory that's newer than the JSON minus a clock-skew
+    cushion, narrowed by game-name hint.
     """
-    for ext in IMAGE_EXTS:
-        candidate = outputs_dir / f"{json_path.stem}{ext}"
-        if candidate.exists():
-            return candidate
+    candidate_stems = [json_path.stem]
+    if json_path.stem.startswith("full-"):
+        candidate_stems.insert(0, json_path.stem[len("full-") :])
+
+    for stem in candidate_stems:
+        for ext in IMAGE_EXTS:
+            candidate = outputs_dir / f"{stem}{ext}"
+            if candidate.exists():
+                return candidate
 
     json_mtime = json_path.stat().st_mtime
     threshold = json_mtime - FRESH_IMAGE_CUSHION_SECONDS
