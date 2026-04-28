@@ -29,7 +29,7 @@ docker run --rm \
   -v "$OUT_DIR:/app/outputs" \
   -e "USERNAME=$SEGA_USERNAME" \
   -e "PASSWORD=$SEGA_PASSWORD" \
-  -e VERSION=XVRS \
+  -e VERSION=XVRSX \
   -e TZ=Asia/Bangkok \
   -e LANG=th_TH.UTF-8 \
   ghcr.io/leomotors/chunithm-scraper:v6

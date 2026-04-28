@@ -243,6 +243,128 @@ def detect_game(data: dict[str, Any]) -> str:
     )
 
 
+# ---- Rating image import ----
+IMAGE_EXTS = (".webp", ".png", ".jpg", ".jpeg")
+# chuumai-tools doesn't document the exact filename. Match by JSON stem first,
+# then fall back to any image whose name contains a game-name hint.
+GAME_FILENAME_HINTS = {
+    "maimai": ("maimai", "mai"),
+    "chunithm": ("chunithm", "chuni"),
+}
+
+
+FRESH_IMAGE_CUSHION_SECONDS = 60
+
+
+def find_image_for_game(
+    outputs_dir: Path, json_path: Path, game: str
+) -> Path | None:
+    """Locate an image file in outputs_dir that pairs with this JSON/game.
+
+    chuumai-tools writes the JSON pair as
+        outputs/{lastPlayed}-{jobId}.json        (imgGenInput)
+        outputs/full-{lastPlayed}-{jobId}.json   (fullData — what we read)
+        outputs/{lastPlayed}-{jobId}.png         (rendered image)
+    so the image stem is the JSON stem with the leading "full-" stripped.
+
+    We try, in order: (1) the chuumai-tools convention; (2) same stem
+    as JSON (in case a future scraper version renames things); (3) any
+    image in the directory that's newer than the JSON minus a clock-skew
+    cushion, narrowed by game-name hint.
+    """
+    candidate_stems = [json_path.stem]
+    if json_path.stem.startswith("full-"):
+        candidate_stems.insert(0, json_path.stem[len("full-") :])
+
+    for stem in candidate_stems:
+        for ext in IMAGE_EXTS:
+            candidate = outputs_dir / f"{stem}{ext}"
+            if candidate.exists():
+                return candidate
+
+    json_mtime = json_path.stat().st_mtime
+    threshold = json_mtime - FRESH_IMAGE_CUSHION_SECONDS
+
+    hints = GAME_FILENAME_HINTS.get(game, (game,))
+    fresh: list[tuple[float, Path]] = []
+    for hint in hints:
+        for ext in IMAGE_EXTS:
+            for path in outputs_dir.glob(f"*{hint}*{ext}"):
+                mtime = path.stat().st_mtime
+                if mtime >= threshold:
+                    fresh.append((mtime, path))
+    if not fresh:
+        return None
+    # Newest first.
+    fresh.sort(key=lambda p: p[0], reverse=True)
+    return fresh[0][1]
+
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def detect_content_type(img_bytes: bytes) -> str | None:
+    """Return content-type derived from the file's magic bytes, or None.
+
+    Defends against renamed/garbled files; the chuumai-tools docker write
+    is the only legitimate writer to outputs/, but the cost of one byte
+    comparison is negligible.
+    """
+    if len(img_bytes) >= 12 and img_bytes[:4] == b"RIFF" and img_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if img_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if img_bytes.startswith(b"\xFF\xD8\xFF"):
+        return "image/jpeg"
+    return None
+
+
+async def import_rating_image(image_path: Path, game: str) -> None:
+    """Upsert the rating image bytes into user_rating_images (one row per game)."""
+    size = image_path.stat().st_size
+    if size > MAX_IMAGE_BYTES:
+        print(
+            f"[WARN] Skipping {image_path.name}: {size} bytes exceeds "
+            f"the {MAX_IMAGE_BYTES}-byte cap"
+        )
+        return
+
+    img_bytes = image_path.read_bytes()
+    content_type = detect_content_type(img_bytes)
+    if content_type is None:
+        print(
+            f"[WARN] Skipping {image_path.name}: bytes don't match "
+            f"webp/png/jpeg signatures"
+        )
+        return
+
+    updated_at = datetime.now(BKK).replace(tzinfo=None)
+
+    conn = await connect_db()
+    try:
+        await conn.execute(
+            """
+            INSERT INTO public.user_rating_images
+                (game, image_data, content_type, updated_at)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (game) DO UPDATE SET
+                image_data = EXCLUDED.image_data,
+                content_type = EXCLUDED.content_type,
+                updated_at = EXCLUDED.updated_at
+            """,
+            game,
+            img_bytes,
+            content_type,
+            updated_at,
+        )
+        print(
+            f"[OK] Upserted {game} rating image "
+            f"({len(img_bytes)} bytes, {content_type}) from {image_path.name}"
+        )
+    finally:
+        await conn.close()
+
+
 # ---- File reading ----
 def read_json_file(path: Path) -> dict[str, Any]:
     """
@@ -324,6 +446,21 @@ async def main(outputs_dir: Path | None = None):
             game = detect_game(data)
             await import_user_data(data, game)
             imported_count += 1
+
+            image_path = find_image_for_game(outputs_dir, json_file, game)
+            if image_path is None:
+                available = sorted(
+                    p.name for p in outputs_dir.iterdir() if p.is_file()
+                )
+                print(
+                    f"[WARN] No rating image found for {game}. "
+                    f"Files in {outputs_dir}: {available}"
+                )
+            else:
+                try:
+                    await import_rating_image(image_path, game)
+                except Exception as e:
+                    print(f"[ERROR] rating image import failed for {game}: {e}")
 
             # Refresh today's daily_play row with the latest rating + play count.
             # Column-scoped so maimai and chunithm can refresh independently.
