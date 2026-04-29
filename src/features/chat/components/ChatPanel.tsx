@@ -315,7 +315,11 @@ export default function ChatPanel() {
         </button>
       </div>
 
-      <div className="chat-panel__scroll" ref={scrollRef}>
+      <div
+        className="chat-panel__scroll"
+        style={{ marginBottom: -30, paddingBottom: 30 }}
+        ref={scrollRef}
+      >
         {messages.length === 0 ? (
           <EmptyState onPick={(t) => send(t)} />
         ) : (
@@ -326,12 +330,21 @@ export default function ChatPanel() {
       </div>
 
       <div className="chat-composer">
-        <div className="chat-composer__box">
+        <div
+          className="chat-composer__box"
+          style={{
+            borderRadius: 25,
+            paddingBottom: 8,
+            paddingTop: 8,
+            overflow: "hidden",
+          }}
+        >
           <textarea
             ref={taRef}
             className="chat-composer__input"
             placeholder="Ask about your play history, rating, or song picks…"
             value={input}
+            style={{ transform: "translateY(-10%)" }}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             rows={1}
@@ -340,11 +353,12 @@ export default function ChatPanel() {
           <button
             type="button"
             className="chat-composer__send"
+            style={{ borderRadius: 200 }}
             disabled={!input.trim() || busy}
             onClick={() => send()}
             title="Send"
           >
-            <Send size={14} />
+            <Send size={14} className="mt-px mr-px" />
           </button>
         </div>
         <div className="chat-composer__hints">
