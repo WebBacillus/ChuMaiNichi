@@ -16,7 +16,7 @@ A personal dashboard for CHUNITHM and maimai DX arcade rhythm-game players. Trac
 
 ## Features
 
-- **Daily play tracking** — automated scraper logs every play to PostgreSQL.
+- **Daily play tracking** — your play count and rating are recorded in PostgreSQL once per day.
 - **Rating history** — DX rating and CHUNITHM rating tracked per day.
 - **AI agent with tool use** — chat with an LLM that can query your database and recommend songs.
 - **Song suggestion engine (maimai)** — greedy algorithm that finds the minimum-effort path to a target DX rating.
@@ -116,7 +116,17 @@ Wait ~2 minutes for the run to finish.
 
 ### 7. Deploy to Vercel
 
-Import your fork at [vercel.com/new](https://vercel.com/new) and set these env vars during import:
+First, create a fine-grained GitHub Personal Access Token (the dashboard's **Refresh scores** button uses it to trigger your fork's GitHub Actions):
+
+1. Open <https://github.com/settings/personal-access-tokens/new>
+2. **Token name**: e.g., `ChuMaiNichi Vercel`
+3. **Expiration**: pick the longest you're comfortable with (max 1 year for fine-grained tokens)
+4. **Repository access**: choose **Only select repositories** and pick your fork (e.g., `yourname/ChuMaiNichi`)
+5. **Repository permissions**: scroll down and set **Actions** to **Read and write** (leave everything else untouched)
+6. Click **Generate token** at the bottom of the page
+7. **Copy the token immediately** — GitHub shows it only once. You'll paste it into Vercel as `GITHUB_PAT` below.
+
+Then import your fork at [vercel.com/new](https://vercel.com/new) and set these env vars during import:
 
 | Variable | Value |
 |---|---|
