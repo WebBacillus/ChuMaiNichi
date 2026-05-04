@@ -8,7 +8,7 @@ interface Suggestion {
 
 const SUGGESTIONS: Suggestion[] = [
   { icon: Calendar, text: "How many times did I play this week?" },
-  { icon: Sparkles, text: "Suggest songs to reach rating 15000" },
+  { icon: Sparkles, text: "Suggest songs I should grind to improve my rating" },
   { icon: TrendingUp, text: "Show my rating progress this month" },
   { icon: Coins, text: "How much have I spent on arcade this year?" },
 ];
