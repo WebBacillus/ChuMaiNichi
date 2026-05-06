@@ -137,6 +137,10 @@ export default function ChatPanel() {
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
+    if (!input) {
+      ta.style.height = "";
+      return;
+    }
     ta.style.height = "auto";
     ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
   }, [input]);
