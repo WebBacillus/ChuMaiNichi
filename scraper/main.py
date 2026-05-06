@@ -118,10 +118,10 @@ async def main():
     # Insert with ratings and failure info
     await upsert_daily_play(
         today_str,
-        new_plays.get("maimai", 0),
-        new_plays.get("chunithm", 0),
-        cumulative.get("maimai", 0),
-        cumulative.get("chunithm", 0),
+        new_plays.get("maimai") if "maimai" in cumulative else None,
+        new_plays.get("chunithm") if "chunithm" in cumulative else None,
+        cumulative.get("maimai") if "maimai" in cumulative else None,
+        cumulative.get("chunithm") if "chunithm" in cumulative else None,
         ratings.get("maimai"),
         ratings.get("chunithm"),
         scrape_failed=scrape_failed,

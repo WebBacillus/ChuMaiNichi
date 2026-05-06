@@ -91,10 +91,10 @@ async def get_previous_rating(game: str, exclude_date: str) -> float | None:
 
 async def upsert_daily_play(
     date_str: str,
-    maimai_new: int,
-    chunithm_new: int,
-    maimai_cumulative: int,
-    chunithm_cumulative: int,
+    maimai_new: int | None,
+    chunithm_new: int | None,
+    maimai_cumulative: int | None,
+    chunithm_cumulative: int | None,
     maimai_rating: float | int | Decimal | None,
     chunithm_rating: float | int | Decimal | None,
     scrape_failed: bool = False,
