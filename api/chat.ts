@@ -68,7 +68,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const model = requestModel || defaultModel();
-  const config = loadConfig();
+  let config: ReturnType<typeof loadConfig>;
+  try {
+    config = loadConfig();
+  } catch (err) {
+    console.error("Failed to load config.json:", err);
+    return res.status(500).json({ error: "Server config missing" });
+  }
   const tools: ChatCompletionTool[] = [QUERY_TOOL];
   if (config.games.includes("maimai")) {
     tools.push(SUGGEST_SONGS_TOOL);
