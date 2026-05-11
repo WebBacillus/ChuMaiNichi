@@ -312,9 +312,9 @@ async def fetch_player_data(game: str) -> dict:
                         "div.m_5.m_b_5.t_r.f_12"
                     ).inner_text()
                     match = re.search(
-                        r"maimaiDX total play count：(\d+)", play_count_text
+                        r"maimaiDX total play count：([\d,]+)", play_count_text
                     )
-                    cumulative = int(match.group(1)) if match else 0
+                    cumulative = int(match.group(1).replace(",", "")) if match else 0
 
                 await save_cookies(context, game)
                 await browser.close()
