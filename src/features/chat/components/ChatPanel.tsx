@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import useShellStore from "@/features/shell/stores/shell-store";
 import useSettingsStore from "@/features/settings/stores/settings-store";
 import { fetchModel } from "@/global/lib/api";
 import { streamChat, type ChatMessage, type StreamEvent } from "../lib/stream";
 import { renderBody } from "../lib/render-body";
+import { GlassComposer, GlassSendButton } from "./LiquidComposer";
 import ToolCall from "./ToolCall";
 import EmptyState from "./EmptyState";
 
@@ -387,40 +388,31 @@ export default function ChatPanel() {
       </div>
 
       <div className="chat-composer">
-        <div
-          className="chat-composer__box"
-          style={{
-            borderRadius: 25,
-            paddingBottom: 8,
-            paddingTop: 8,
-            overflow: "hidden",
-          }}
-        >
-          <textarea
-            ref={taRef}
-            className="chat-composer__input"
-            placeholder="Ask about your play history, rating, or song picks…"
-            value={input}
-            style={{ transform: "translateY(-10%)" }}
-            onChange={(e) => {
-              setInput(e.target.value);
-              if (historyIndex !== -1) setHistoryIndex(-1);
-            }}
-            onKeyDown={onKeyDown}
-            rows={1}
-            disabled={busy}
-          />
-          <button
-            type="button"
-            className="chat-composer__send"
-            style={{ borderRadius: 200 }}
-            disabled={!input.trim() || busy}
-            onClick={() => send()}
-            title="Send"
-          >
-            <Send size={14} className="mt-px mr-px" />
-          </button>
-        </div>
+        <GlassComposer className="p-1 px-2 py-1">
+          <div className="flex items-center gap-2">
+            <textarea
+              ref={taRef}
+              className="chat-composer__input flex-1 bg-transparent border-none outline-none text-foreground
+                         placeholder:text-muted-foreground resize-none min-h-[22px] max-h-[140px]
+                         py-1 px-1 scrollbar-thin"
+              placeholder="Ask about your play history, rating, or song picks…"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (historyIndex !== -1) setHistoryIndex(-1);
+              }}
+              onKeyDown={onKeyDown}
+              rows={1}
+              disabled={busy}
+            />
+            <GlassSendButton
+              disabled={!input.trim() || busy}
+              onClick={() => send()}
+              title="Send"
+              size="default"
+            />
+          </div>
+        </GlassComposer>
         <div className="chat-composer__hints">
           <span>
             <kbd>↑</kbd>/<kbd>↓</kbd> history · <kbd>Enter</kbd> send ·{" "}
