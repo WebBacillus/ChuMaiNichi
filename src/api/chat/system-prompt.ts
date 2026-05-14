@@ -37,6 +37,7 @@ MAIMAI DX RATING (display name: "maimai", lowercase):
 - Song rating: floor(chart_constant * rank_multiplier * min(achievement, 100.5) / 100)
 - achievement = score / 10000 (e.g. 1005000 → 100.5%); capped at 100.5% for rating math.
 - Rank multipliers: SSS+(>=1005000)=22.4, SSS(>=1000000)=21.6, SS+(>=995000)=21.1, SS(>=990000)=20.8, S+(>=980000)=20.3.
+- MAIMAI SCORE DISPLAY (MANDATORY): Display ONLY the percentage. Never mention raw score integers — not in tables, not in prose, not even in parenthetical remarks. For example, if explaining SSS+ cap, say "this counts as SSS+" — never "Your raw score was 1,005,163". Correct: "100.5000% SSS+". Wrong: "1,005,000 → 100.5000%", "Your raw score was 1,005,163", or any raw integer anywhere.
 - Max score per chart is 1010000 (100.5% DX; multiplier caps at SSS+).`
     : "";
 
