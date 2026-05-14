@@ -29,6 +29,8 @@ export interface PlayerSong {
   chartType: string;
   difficulty: string;
   score?: number;
+  comboMark?: string; // "ALL COMBO" = AP
+  syncMark?: string;  // "ALL SYNC" = FS
   [key: string]: unknown;
 }
 
@@ -127,10 +129,15 @@ export function getNextRank(score: number): NextRank {
 
 /**
  * Calculate rating for a single song.
- * rating = trunc(constant * achievement * factor)
+ * rating = trunc(constant * achievement * factor) + AP_bonus
  * Achievement capped at 100.5% for SSS+.
+ * AP (ALL COMBO) adds +1 per APed chart in top 50.
  */
-export function calculateSongRating(constant: number, score: number): number {
+export function calculateSongRating(
+  constant: number,
+  score: number,
+  comboMark?: string,
+): number {
   let achievement: number;
   let factor: number;
   if (score >= 1005000) {
@@ -140,7 +147,9 @@ export function calculateSongRating(constant: number, score: number): number {
     achievement = score / 10000;
     factor = getRankFactor(score);
   }
-  return Math.trunc(constant * achievement * factor);
+  const base = Math.trunc(constant * achievement * factor);
+  const apBonus = (comboMark === "AP" || comboMark === "AP+") ? 1 : 0;
+  return base + apBonus;
 }
 
 /** Key format: "title|chartType|difficulty" */
@@ -180,7 +189,7 @@ export function calcRating(
     const key = makeKey(song.title, song.chartType, song.difficulty);
     const constant = constants.get(key) || 0;
     const rating =
-      constant > 0 ? calculateSongRating(constant, song.score || 0) : 0;
+      constant > 0 ? calculateSongRating(constant, song.score || 0, song.comboMark) : 0;
     return { ...song, rating };
   });
 
@@ -188,7 +197,7 @@ export function calcRating(
     const key = makeKey(song.title, song.chartType, song.difficulty);
     const constant = constants.get(key) || 0;
     const rating =
-      constant > 0 ? calculateSongRating(constant, song.score || 0) : 0;
+      constant > 0 ? calculateSongRating(constant, song.score || 0, song.comboMark) : 0;
     return { ...song, rating };
   });
 
