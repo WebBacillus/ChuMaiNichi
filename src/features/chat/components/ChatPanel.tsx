@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, SquareSlash, X } from "lucide-react";
 import useShellStore from "@/features/shell/stores/shell-store";
 import useSettingsStore from "@/features/settings/stores/settings-store";
 import { fetchModel } from "@/global/lib/api";
+import { APP_CONFIG } from "@/global/lib/config";
 import { streamChat, type ChatMessage, type StreamEvent } from "../lib/stream";
 import { renderBody } from "../lib/render-body";
 import { GlassComposer, GlassSendButton } from "./LiquidComposer";
@@ -17,6 +18,31 @@ type UiMessage =
 
 const CHAT_STORAGE_KEY = "chumai-chat-messages";
 const CHAT_MAX_STORED = 100;
+const SLASH_COMMANDS = [
+  ...(APP_CONFIG.games.includes("chunithm")
+    ? [
+        {
+          value: "/chuni rating 15.00",
+          label: "CHUNITHM",
+          description: "Target play-rating score table",
+        },
+      ]
+    : []),
+  ...(APP_CONFIG.games.includes("maimai")
+    ? [
+        {
+          value: "/mai rating 300",
+          label: "maimai",
+          description: "Target song-rating achievement table",
+        },
+        {
+          value: "/mai rating 14.0 100.0000%",
+          label: "maimai",
+          description: "Single-chart song rating",
+        },
+      ]
+    : []),
+];
 
 function currentTimestampIct(): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -129,8 +155,21 @@ export default function ChatPanel() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [draft, setDraft] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState(false);
 
   const userMessages = messages.filter((m) => m.role === "user");
+  const slashMatches =
+    input.startsWith("/") && !slashDismissed
+      ? SLASH_COMMANDS.filter((command) => command.value.startsWith(input.trim()))
+      : [];
+  const slashMenuOpen = slashMatches.length > 0;
+  const activeSlashCommand = slashMatches[slashIndex] ?? slashMatches[0];
+  const slashInputIsExact = activeSlashCommand?.value === input.trim();
+
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [input]);
 
   // Escape key to close chat panel
   useEffect(() => {
@@ -312,7 +351,52 @@ export default function ChatPanel() {
     [input, busy, messages, handleEvent],
   );
 
+  const applySlashCommand = (value: string) => {
+    setInput(value);
+    setSlashDismissed(true);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
+  const openSlashCommands = () => {
+    setInput((value) => {
+      if (!value.trim()) return "/";
+      return value.startsWith("/") ? value : value;
+    });
+    setSlashDismissed(false);
+    setSlashIndex(0);
+    requestAnimationFrame(() => taRef.current?.focus());
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashMenuOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((idx) => (idx + 1) % slashMatches.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((idx) => (idx - 1 + slashMatches.length) % slashMatches.length);
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        applySlashCommand(activeSlashCommand.value);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey && !slashInputIsExact) {
+        e.preventDefault();
+        applySlashCommand(activeSlashCommand.value);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSlashDismissed(true);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -388,17 +472,73 @@ export default function ChatPanel() {
       </div>
 
       <div className="chat-composer">
+        {slashMenuOpen && (
+          <div
+            id="slash-command-menu"
+            className="slash-menu"
+            role="listbox"
+            aria-label="Slash commands"
+          >
+            <div className="slash-menu__header">Commands</div>
+            {slashMatches.map((command, index) => (
+              <button
+                key={command.value}
+                id={`slash-command-${index}`}
+                type="button"
+                className="slash-menu__item"
+                data-active={index === slashIndex}
+                role="option"
+                aria-selected={index === slashIndex}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  applySlashCommand(command.value);
+                }}
+              >
+                <span className="slash-menu__main">
+                  <code>{command.value}</code>
+                  <span>{command.description}</span>
+                </span>
+                <span className="slash-menu__badge">{command.label}</span>
+              </button>
+            ))}
+            <div className="slash-menu__footer">
+              <kbd>↑</kbd>/<kbd>↓</kbd> move · <kbd>Tab</kbd> select
+            </div>
+          </div>
+        )}
         <GlassComposer className="p-1 px-2 py-1">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="chat-composer__command"
+              onClick={openSlashCommands}
+              disabled={busy || Boolean(input && !input.startsWith("/"))}
+              data-active={slashMenuOpen}
+              aria-pressed={slashMenuOpen}
+              aria-haspopup="listbox"
+              aria-keyshortcuts="/"
+              aria-label="Open slash commands"
+              title="Commands (/)"
+            >
+              <SquareSlash size={16} />
+            </button>
             <textarea
               ref={taRef}
               className="chat-composer__input flex-1 bg-transparent border-none outline-none text-foreground
                          placeholder:text-muted-foreground resize-none min-h-[22px] max-h-[140px]
                          py-1 px-1 scrollbar-thin"
               placeholder="Ask about your play history, rating, or song picks…"
+              aria-expanded={slashMenuOpen}
+              aria-haspopup="listbox"
+              aria-autocomplete="list"
+              aria-controls={slashMenuOpen ? "slash-command-menu" : undefined}
+              aria-activedescendant={
+                slashMenuOpen ? `slash-command-${slashIndex}` : undefined
+              }
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
+                setSlashDismissed(false);
                 if (historyIndex !== -1) setHistoryIndex(-1);
               }}
               onKeyDown={onKeyDown}

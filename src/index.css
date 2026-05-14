@@ -1294,9 +1294,111 @@ rect.heatmap-today {
 /* Composer */
 .chat-composer {
   z-index: 100;
+  position: relative;
   padding: 0.7rem 0.8rem 0.9rem;
   background: linear-gradient(to top,var(--color-surface) 80%, transparent 100%);
   flex-shrink: 0;
+}
+
+.slash-menu {
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  bottom: calc(100% - 0.55rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  padding: 0.35rem;
+  background: color-mix(in srgb, var(--color-surface) 92%, #0d1117);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+}
+
+.slash-menu__header {
+  padding: 0.2rem 0.55rem 0.28rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.slash-menu__item {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slash-menu__item[data-active="true"],
+.slash-menu__item:hover {
+  background: var(--color-elevated);
+}
+
+.slash-menu__item[data-active="true"] {
+  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
+}
+
+.slash-menu__main {
+  min-width: 0;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.slash-menu__main code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.slash-menu__main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.slash-menu__badge {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+}
+
+.slash-menu__footer {
+  padding: 0.18rem 0.55rem 0.06rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+}
+
+.slash-menu__footer kbd {
+  background: var(--color-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 0.62rem;
 }
 
 .chat-composer__box {
@@ -1348,6 +1450,39 @@ rect.heatmap-today {
 
 .chat-composer__input::placeholder {
   color: var(--color-text-muted);
+}
+
+.chat-composer__command {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.chat-composer__command:hover:not(:disabled),
+.chat-composer__command:focus-visible,
+.chat-composer__command[data-active="true"] {
+  color: var(--foreground);
+  background: var(--color-elevated);
+  border-color: var(--color-border-subtle);
+  outline: none;
+}
+
+.chat-composer__command[data-active="true"] {
+  color: var(--color-accent-hover);
+}
+
+.chat-composer__command:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .chat-composer__send {
